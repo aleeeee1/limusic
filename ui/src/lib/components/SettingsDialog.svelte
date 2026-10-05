@@ -26,7 +26,8 @@
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Popover from '$lib/components/ui/popover';
-	import { HELP_COMBO, IS_MAC } from '$lib/shortcuts';
+	import { IS_MAC } from '$lib/shortcuts';
+	import { keybinds } from '$lib/keybinds.svelte';
 	import { copyText } from '$lib/clipboard';
 	import * as api from '$lib/api';
 	import { blocked, prefs, refreshView, setAutoplay, ui, toast, unblockArtist } from '$lib/player.svelte';
@@ -532,7 +533,7 @@
 						>
 							<HugeiconsIcon icon={KeyboardIcon} class="h-3.5 w-3.5" />
 							<span
-								>{shortcutsHint[0]}<kbd class="font-mono font-medium">{HELP_COMBO}</kbd>{shortcutsHint[1] ??
+								>{shortcutsHint[0]}<kbd class="font-mono font-medium">{keybinds.label('show_list')}</kbd>{shortcutsHint[1] ??
 									''}</span
 							>
 						</button>
