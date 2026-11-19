@@ -145,12 +145,22 @@
 	// queue variants have no width left for another mark.
 	const inPlaylists = $derived(showRating ? savedPlaylists(song.video_id) : []);
 
-	// The whole row is a play target (role="button"), so mirror native button keyboard activation.
-	// Only when the key lands on the row itself — keydowns bubble up from nested interactive
-	// elements (⋯ menu, artist link), and hijacking those would play the row instead.
+	// The whole row is a play target (role="button"), so mirror native button keyboard activation
+	// on Enter. Space is deliberately *not* the row's: it is the app-wide play/pause (shortcuts.ts),
+	// and it is the key people press to stop the song. Letting a focused row take it started the
+	// row and threw away the queue instead. Only a nested control that answers to Space itself
+	// (the checkbox, the ⋯ button, a rating heart) keeps it local. Keydowns from nested elements
+	// bubble up here, so that guard has to look at the target, not just at `key`.
+	function nestedUsesSpace(target: EventTarget | null): boolean {
+		return (
+			target instanceof HTMLElement &&
+			!!target.closest('button, input, select, textarea, [contenteditable="true"]')
+		);
+	}
+
 	function onKey(e: KeyboardEvent) {
 		if (e.target !== e.currentTarget) {
-			if (e.key === ' ') e.stopPropagation();
+			if (e.key === ' ' && nestedUsesSpace(e.target)) e.stopPropagation();
 			return;
 		}
 		if (selection && selectable) {
@@ -170,7 +180,7 @@
 				return;
 			}
 		}
-		if (e.key === 'Enter' || e.key === ' ') {
+		if (e.key === 'Enter') {
 			e.preventDefault();
 			onplay();
 		}
