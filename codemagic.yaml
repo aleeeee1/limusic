@@ -20,7 +20,6 @@ workflows:
         script: |
           set -euo pipefail
           HOMEBREW_NO_AUTO_UPDATE=1 brew install mpv dylibbundler
-          npm install -g pnpm@10
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |
             sh -s -- -y --profile minimal
           . "$HOME/.cargo/env"
@@ -31,8 +30,8 @@ workflows:
           set -euo pipefail
           . "$HOME/.cargo/env"
           cd ui
-          pnpm install --frozen-lockfile
-          pnpm build
+          npx --yes pnpm@10 install --frozen-lockfile
+          npx --yes pnpm@10 build
 
       - name: Tauri app
         script: |
