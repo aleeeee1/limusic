@@ -1,0 +1,68 @@
+# Free macOS CI for Limusic (Codemagic: 500 min/month on a Mac mini M2, personal account).
+#
+# Mirrors the build half of .github/workflows/macos-release.yml without release/signing secrets:
+# no updater artifacts, no notarization, the .app is ad-hoc signed and zipped for a local install.
+# Equivalent to `tauri build --bundles app` on CI, run from the branch you point Codemagic at.
+
+workflows:
+  macos-app:
+    name: Limusic macOS app
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    environment:
+      node: latest
+      vars:
+        LIBRARY_PATH: /opt/homebrew/lib
+
+    scripts:
+      - name: Toolchain
+        script: |
+          set -euo pipefail
+          HOMEBREW_NO_AUTO_UPDATE=1 brew install mpv dylibbundler
+          npm install -g pnpm@10
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |
+            sh -s -- -y --profile minimal
+          . "$HOME/.cargo/env"
+          rustc --version
+
+      - name: Frontend
+        script: |
+          set -euo pipefail
+          . "$HOME/.cargo/env"
+          cd ui
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Tauri app
+        script: |
+          set -euo pipefail
+          . "$HOME/.cargo/env"
+          npx --yes @tauri-apps/cli@latest build --bundles app \
+            --config '{"build":{"beforeBuildCommand":""},"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: Bundle dylibs and sign ad-hoc
+        script: |
+          set -euo pipefail
+          APP=$(ls -d target/release/bundle/macos/*.app)
+          BIN="$APP/Contents/MacOS/$(plutil -extract CFBundleExecutable raw "$APP/Contents/Info.plist")"
+          dylibbundler -cd -of -b -x "$BIN" \
+            -d "$APP/Contents/Frameworks" \
+            -p "@executable_path/../Frameworks" \
+            -s "$(brew --prefix)/lib"
+          # dylibbundler rewrites every LC_RPATH to the same value; Homebrew's libmpv ships two
+          # and dyld refuses to load a Mach-O that lists one twice.
+          install_name_tool -delete_rpath '@executable_path/../Frameworks/' \
+            "$APP/Contents/Frameworks/libmpv.2.dylib" || true
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep --strict "$APP"
+
+      - name: Package
+        script: |
+          set -euo pipefail
+          APP=$(ls -d target/release/bundle/macos/*.app)
+          mkdir -p artifacts
+          ditto -c -k --sequesterRsrc --keepParent "$APP" artifacts/limusic-macos.zip
+
+    artifacts:
+      - artifacts/limusic-macos.zip
