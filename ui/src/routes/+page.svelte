@@ -1,15 +1,17 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { goto } from '$app/navigation';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import {
 		ArrowUpBigIcon,
 		DashboardSquareEditIcon,
+		IterationCcwIcon,
 		MusicNote01Icon,
 		ViewOffSlashIcon
 	} from '@hugeicons/core-free-icons';
 	import { Skeleton } from '$lib/components/ui/skeleton';
+	import LimusicLoader from '$lib/components/LimusicLoader.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import MediaCardSkeleton from '$lib/components/MediaCardSkeleton.svelte';
 	import ErrorState from '$lib/components/ErrorState.svelte';
@@ -19,6 +21,7 @@
 	import Shelf from '$lib/components/Shelf.svelte';
 	import ForgottenFavourites from '$lib/components/ForgottenFavourites.svelte';
 	import FamiliarArtists from '$lib/components/FamiliarArtists.svelte';
+	import LiveNow from '$lib/components/LiveNow.svelte';
 	import HomeLayoutDialog from '$lib/components/HomeLayoutDialog.svelte';
 	import TrackRowSkeleton from '$lib/components/TrackRowSkeleton.svelte';
 	import * as api from '$lib/api';
@@ -26,7 +29,7 @@
 	import {
 		auth,
 		library,
-		noteHomeSections,
+		adoptHomeKinds,
 		personal,
 		playback,
 		seedOnRepeatPick,
@@ -34,12 +37,12 @@
 	} from '$lib/player.svelte';
 	import { t } from '$lib/i18n.svelte';
 	import {
+		HOME_KINDS,
 		arrangeSections,
 		freshen,
 		hiddenSections,
 		interleave,
-		recentItems,
-		topArtists
+		recentItems
 	} from '$lib/personal';
 	import { getCached, putCached } from '$lib/pagecache';
 
@@ -99,13 +102,21 @@
 	// markup) — the shelf's cards say nothing about a song, and this one is meant to be read.
 	// Songs only: if YouTube ever fills that shelf with something else, it stays a normal card row.
 	const isForgotten = (s: HomeSection) =>
-		/forgotten/i.test(s.title) && s.items.some((i) => i.kind === 'song');
+		s.kind === 'forgotten' && s.items.some((i) => i.kind === 'song');
 	// Held separately from `home`, not derived from it: YouTube sends the shelf a page or two into the
 	// feed, so it survives the revalidating `home = fresh` that drops back to page one, and a revisit
 	// reads it from the cache instead of walking continuations again.
 	let forgotten = $state<HomeSection | null>(null);
 	let seeking = $state(false); // walking continuations to find it — the slot shows a skeleton
-	const feed = $derived(home?.sections.filter((s) => !isForgotten(s)) ?? []);
+	// Home shows only the shelves it knows (`HOME_KINDS`); a mood chip's feed shows whatever it sends.
+	// So does a signed-out home: it carries five of the kinds and seven general shelves (charts,
+	// moods), and without those it is half empty. It is also the same feed every visit, which is
+	// what makes listing whatever it sent harmless there.
+	const homeKinds = new Set<string>(HOME_KINDS);
+	const everything = $derived(!!selected || auth.account?.signedIn === false);
+	const feed = $derived(
+		home?.sections.filter((s) => !isForgotten(s) && (everything || homeKinds.has(s.kind!))) ?? []
+	);
 
 	// --- the arrangement the user set in Edit home (personal.ts) --------------------------------
 	// The sections the app builds itself get reserved keys (a YouTube shelf title can't start with
@@ -113,6 +124,7 @@
 	const SHORTCUTS = '@shortcuts';
 	const RECENT = '@recent';
 	const FAMILIAR = '@familiar';
+	const LIVE = '@live';
 	const FORGOTTEN = '@forgotten';
 	type Block =
 		| { id: string; key: string; title: string; shelf?: undefined }
@@ -124,50 +136,47 @@
 		{ id: SHORTCUTS, key: SHORTCUTS, title: t('home.shortcuts') },
 		{ id: RECENT, key: RECENT, title: t('home.jump_back_in') },
 		{ id: FAMILIAR, key: FAMILIAR, title: t('home.familiar_artists') },
+		{ id: LIVE, key: LIVE, title: t('home.live_now') },
 		{ id: FORGOTTEN, key: FORGOTTEN, title: t('home.forgotten_favourites') }
 	]);
 	/**
 	 * Every section home can show, in the user's order, hidden ones included. Shelves are keyed on
-	 * their title (all YouTube gives us that survives a restart) but rendered under a positional id,
-	 * because a feed walked far enough does repeat one.
+	 * their kind, the same in every language, but rendered under a positional id, because a feed
+	 * walked far enough does repeat one.
 	 *
 	 * A mood feed is the chip's: YouTube's order, none of ours, and none of home's arrangement.
 	 */
 	const blocks = $derived.by(() => {
 		const shelves: Block[] = feed.map((s, i) => ({
 			id: `${i}:${s.title}`,
-			key: s.title,
-			title: s.title,
+			key: s.kind ?? s.title,
+			// Our name for it, as on Android: YouTube now calls it "Song mixes", Edit home "Quick picks".
+			// Home only; a mood chip's feed keeps YouTube's titles.
+			title: s.kind === 'quick_picks' && !selected ? t('home.kinds.quick_picks') : s.title,
 			shelf: s
 		}));
 		return selected ? shelves : arrangeSections([...local, ...shelves], personal);
 	});
 	const visible = $derived(selected ? blocks : blocks.filter((b) => !hidden.has(b.key)));
 	/**
-	 * What Edit home lists. Not `blocks`: the feed arrives a page at a time, so `blocks` holds only
-	 * the shelves scrolled to so far, and the panel showed five rows before a scroll and fifteen
-	 * after one. Every shelf home has ever rendered is remembered (`noteSections`), and the ones this
-	 * visit hasn't fetched yet are listed alongside the loaded ones: a section can be hidden or moved
-	 * before the page has got to it, which is the whole point of the panel.
-	 *
-	 * Kept apart from `blocks` deliberately: these carry no shelf, so they must never reach the
-	 * feed's renderer. One row per key, since a repeated shelf shares its setting anyway. Under a
-	 * mood chip it is still home's list: the loaded shelves are the chip's, so only ours and the
-	 * remembered ones go in.
+	 * What Edit home lists: ours and every kind home knows, whether or not the feed has sent it yet
+	 * (it arrives a page at a time, and a section can be hidden or moved before the page gets to it).
+	 * Under our own labels, so the list reads the same before anything has loaded. Signed out, the
+	 * other shelves loaded so far join them, under YouTube's title.
 	 */
 	const known = $derived.by(() => {
 		const rows = new Map<string, { key: string; title: string }>();
-		for (const b of selected ? local : blocks) if (!rows.has(b.key)) rows.set(b.key, b);
-		for (const k of personal.home.seen) if (!rows.has(k)) rows.set(k, { key: k, title: k });
+		for (const b of local) rows.set(b.key, b);
+		for (const k of HOME_KINDS) rows.set(k, { key: k, title: t(`home.kinds.${k}`) });
+		if (!selected) for (const b of blocks) if (!rows.has(b.key)) rows.set(b.key, b);
 		return arrangeSections([...rows.values()], personal);
 	});
 
-	// Every page of the feed adds to that memory. Only the unfiltered feed: a mood chip's shelves
-	// belong to the chip, not to home's arrangement.
+	// Older arrangements are keyed by shelf title; move them over as the feed names the kinds.
+	// Untracked: it reads the arrangement it rewrites, which would re-run this effect.
 	$effect(() => {
-		if (selected) return;
-		const titles = feed.map((s) => s.title);
-		if (titles.length) noteHomeSections(titles);
+		const sections = !selected && home?.sections;
+		if (sections && sections.length) untrack(() => adoptHomeKinds(sections));
 	});
 
 	/** Latch the shelf whenever a page turns out to carry it. Called after every `home` change. */
@@ -193,10 +202,12 @@
 		const order = personal.home.order;
 		if (!order.length) return false;
 		const rank = new Map(order.map((k, i) => [k, i]));
-		const here = new Set([SHORTCUTS, RECENT, FAMILIAR, FORGOTTEN, ...feed.map((s) => s.title)]);
+		const here = new Set([SHORTCUTS, RECENT, FAMILIAR, LIVE, FORGOTTEN, ...feed.map((s) => s.kind)]);
 		let deepest = -1;
 		for (const [k, r] of rank) if (here.has(k) && r > deepest) deepest = r;
-		for (const [k, r] of rank) if (r < deepest && !here.has(k) && !hidden.has(k)) return true;
+		// Kinds only: a title key left from another language would never arrive.
+		for (const [k, r] of rank)
+			if (r < deepest && homeKinds.has(k) && !here.has(k) && !hidden.has(k)) return true;
 		return false;
 	}
 
@@ -296,13 +307,17 @@
 	// has to watch the ancestor rather than the window.
 	let scroller = $state<HTMLElement | null>(null);
 	let scrolled = $state(false);
+	// On a strip covering the page's first 400px: out of view means scrolled past it. An observer
+	// rather than a scroll listener reading scrollTop, which forced a layout on every scroll event
+	// that found one pending (perf/framecost.py: `jsElement_scrollTop -> updateLayout` in a fifth of
+	// the main thread's samples while Home scrolled on WebKitGTK).
 	function watchScroll(node: HTMLElement) {
 		const el = node.closest('main');
 		if (!el) return;
 		scroller = el;
-		const onScroll = () => (scrolled = el.scrollTop > 400);
-		el.addEventListener('scroll', onScroll, { passive: true });
-		return () => el.removeEventListener('scroll', onScroll);
+		const io = new IntersectionObserver(([e]) => (scrolled = !e.isIntersecting), { root: el });
+		io.observe(node);
+		return () => io.disconnect();
 	}
 
 	// One page per approach to the bottom: the observer only fires when the sentinel *enters* view, so
@@ -325,8 +340,8 @@
 	 */
 	async function cater(page: HomePage, params: string | null) {
 		if (params) return; // a mood-filtered feed is the chip's, not the user's
-		if (!page.sections.some((s) => /community/i.test(s.title))) return;
-		const artists = topArtists(personal, 3);
+		if (!page.sections.some((s) => s.kind === 'community')) return;
+		const artists = (await api.topArtists(3).catch(() => [])).map((a) => a.name);
 		if (!artists.length) return;
 		const key = `community:${artists.join('|')}`;
 		let items = getCached<BrowseItem[]>(key);
@@ -341,7 +356,7 @@
 		if (selected !== params) return; // the user clicked away to a mood feed
 		// Re-locate the shelf instead of patching the page we were handed: `home` has very likely moved
 		// on while the searches ran (a revalidation, or the Forgotten favourites crawl appending pages).
-		const idx = home?.sections.findIndex((s) => /community/i.test(s.title)) ?? -1;
+		const idx = home?.sections.findIndex((s) => s.kind === 'community') ?? -1;
 		if (idx < 0) return;
 		home = { ...home!, sections: home!.sections.map((s, i) => (i === idx ? { ...s, items } : s)) };
 	}
@@ -364,7 +379,8 @@
 
 <!-- isolate: the header's artwork canvas sits at -z-10 and must stay inside this page, above the
      window's background rather than behind it. -->
-<div class="relative isolate" {@attach watchScroll}>
+<div class="relative isolate">
+	<div class="pointer-events-none absolute inset-x-0 top-0 h-[400px]" {@attach watchScroll}></div>
 	<HomeHero />
 	<!-- The feed's control row: Edit Home, then the mood chips. Sticky, so both
 	     stay reachable while the feed scrolls under them instead of leaving with the header.
@@ -446,11 +462,12 @@
 			{#each visible as block (block.id)}
 				{#if block.shelf}
 					<Shelf
-						title={block.shelf.title}
+						title={block.title}
 						items={block.shelf.items}
 						queueAll={false}
 						size={personal.home.cards}
-						community={/community/i.test(block.shelf.title)}
+						community={block.shelf.kind === 'community'}
+						icon={block.shelf.kind === 'listen_again' ? IterationCcwIcon : undefined}
 						onMore={block.shelf.moreBrowseId ? () => showMore(block.shelf!) : undefined}
 					/>
 				{:else if block.key === SHORTCUTS}
@@ -459,6 +476,8 @@
 					{#if recent.length}<RecentRail items={recent} />{/if}
 				{:else if block.key === FAMILIAR}
 					<FamiliarArtists />
+				{:else if block.key === LIVE}
+					<LiveNow />
 				{:else if forgotten}
 					<ForgottenFavourites
 						section={forgotten}
@@ -516,11 +535,13 @@
 						</Button>
 					</div>
 				{:else}
-					<!-- Skeletons only while a page is actually in flight; the sentinel above them is what
+					<!-- The loader only while a page is actually in flight; the sentinel above it is what
 					     triggers the fetch when it scrolls into range. -->
 					<div class="flex flex-col gap-12" aria-busy={loadingMore}>
-						<div {@attach sentinel}></div>
-						{#if loadingMore}{@render shelfSkeletons(2)}{/if}
+						<!-- Remounted per page: a page whose shelves home doesn't show leaves the sentinel
+						     in view, and the observer only fires on entering it. -->
+						{#key home.sections.length}<div {@attach sentinel}></div>{/key}
+						{#if loadingMore}<div class="flex justify-center py-10"><LimusicLoader /></div>{/if}
 					</div>
 				{/if}
 			{/if}

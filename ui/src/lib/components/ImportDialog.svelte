@@ -32,6 +32,7 @@
 	import * as api from '$lib/api';
 	import { copyText } from '$lib/clipboard';
 	import { thumb } from '$lib/thumb';
+	import { parseYtLink } from '$lib/ytlink';
 	import { rowScroller } from '$lib/rows.svelte';
 	import { rowWindow } from '$lib/rows';
 	import { t } from '$lib/i18n.svelte';
@@ -171,11 +172,14 @@
 	async function search(e: Event) {
 		e.preventDefault();
 		if (!query.trim()) return;
+		// A pasted YouTube link (#441): the track may only be up as a video, which a song search
+		// never turns up.
+		const link = parseYtLink(query);
 		searching = true;
 		try {
-			results = await api.search(query.trim());
+			results = link?.kind === 'song' ? [await api.song(link.id)] : await api.search(query.trim());
 		} catch (e) {
-			toast.error(String(e));
+			toast.error(importError(e));
 		} finally {
 			searching = false;
 		}
@@ -185,8 +189,15 @@
 
 	let name = $state('');
 	let where = $state<'account' | 'device'>('account');
+	let keepUpdated = $state(false);
+	// Only a list read off a link has a Spotify playlist to go back to.
+	const linked = $derived(!!job?.lists.some((l) => l.linked));
 	$effect(() => {
-		if (view === 'review') untrack(() => (name = job?.lists.length === 1 ? listName(job.lists[0]) : ''));
+		if (view === 'review')
+			untrack(() => {
+				name = job?.lists.length === 1 ? listName(job.lists[0]) : '';
+				keepUpdated = false;
+			});
 	});
 
 	async function create() {
@@ -197,7 +208,11 @@
 		});
 		if (job.lists.length === 1 && name.trim()) names[0] = name.trim();
 		try {
-			await api.importCreate({ names, local: !signedIn || where === 'device' });
+			await api.importCreate({
+				names,
+				local: !signedIn || where === 'device',
+				auto: linked && keepUpdated
+			});
 		} catch (e) {
 			toast.error(importError(e));
 		}
@@ -488,6 +503,7 @@
 											<HugeiconsIcon icon={Search01Icon} class="h-4 w-4" />
 										</Button>
 									</form>
+									<p class="px-1 pb-1 text-xs text-muted-foreground">{t('import.paste_link_hint')}</p>
 									<div class="max-h-72 overflow-y-auto">
 										{#each results.length ? results : row.candidates as c (c.video_id)}
 											<button
@@ -558,6 +574,15 @@
 						<HugeiconsIcon icon={ComputerIcon} class="mt-px h-3.5 w-3.5 shrink-0" />
 						{t('import.device_only')}
 					</p>
+				{/if}
+				{#if linked}
+					<label class="flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-2 transition-colors hover:bg-accent/10">
+						<Checkbox class="mt-0.5" checked={keepUpdated} onCheckedChange={(v) => (keepUpdated = !!v)} />
+						<span class="min-w-0">
+							<span class="block text-sm">{t('import.keep_updated')}</span>
+							<span class="block text-xs text-muted-foreground">{t('import.keep_updated_desc')}</span>
+						</span>
+					</label>
 				{/if}
 			</div>
 			<Dialog.Footer>

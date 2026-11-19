@@ -119,6 +119,34 @@ function wantsNative(e: MouseEvent) {
 	return !!sel && !sel.isCollapsed && sel.containsNode(t, true);
 }
 
+let pressed: unknown[] = [];
+
+/** Where the selection starts and ends, or nothing while it is collapsed (a plain click's caret). */
+function selectionEnds(): unknown[] {
+	const s = window.getSelection();
+	return s && !s.isCollapsed ? [s.anchorNode, s.anchorOffset, s.focusNode, s.focusOffset] : [];
+}
+
+/** Window-level, capture phase: the selection as the button went down, for `skipSelectClick`. */
+export function notePress() {
+	pressed = selectionEnds();
+}
+
+/**
+ * Window-level, capture phase: a click that ends a drag across text is the user selecting it to
+ * copy, not pressing the row, title or card underneath (#262). Only a selection this press made
+ * counts, so one left over from earlier never eats the next click. Keyboard clicks (`detail` 0)
+ * select nothing, and Shift+click is a list's range select, which extends the text selection too.
+ */
+export function skipSelectClick(e: MouseEvent) {
+	if (e.detail === 0 || e.shiftKey) return;
+	const now = selectionEnds();
+	if (now.length && now.some((v, i) => v !== pressed[i])) {
+		e.preventDefault();
+		e.stopPropagation();
+	}
+}
+
 /**
  * Window-level handler that takes the native menu away everywhere it is useless. Our own menus
  * (`ctxHost` below) stop the event before it reaches here, so this only ever sees the leftovers.
@@ -137,7 +165,7 @@ export function suppressNative(e: MouseEvent) {
  * half a page right-clickable only makes it unclear what the menu is even about.
  *
  * Buttons inside an item are their own thing too, so right-clicking Like does nothing rather than
- * opening the row's menu. The ⋯ trigger is the exception, since this menu is what it is for.
+ * opening the row's menu. The ⋯ trigger and artwork marked `data-ctx-button` are exceptions.
  *
  * Nested hosts are fine: the innermost one wins, because `open` stops the event.
  */
@@ -149,7 +177,7 @@ export function ctxHost(open: (e: MouseEvent) => void) {
 			if (wantsNative(e as MouseEvent)) return; // let the field keep its paste menu
 			const t = e.target;
 			const button = t instanceof Element ? t.closest('button') : null;
-			if (button && button !== trigger) return;
+			if (button && button !== trigger && !button.hasAttribute('data-ctx-button')) return;
 			open(e as MouseEvent);
 		};
 		host.addEventListener('contextmenu', onContextMenu);

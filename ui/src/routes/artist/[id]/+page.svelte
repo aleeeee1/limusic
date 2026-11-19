@@ -15,12 +15,10 @@
 		BookmarkCheck02Icon,
 		ArrowRight01Icon
 	} from '@hugeicons/core-free-icons';
-	import MediaCardSkeleton from '$lib/components/MediaCardSkeleton.svelte';
+	import LimusicLoader from '$lib/components/LimusicLoader.svelte';
 	import TrackRow from '$lib/components/TrackRow.svelte';
-	import TrackRowSkeleton from '$lib/components/TrackRowSkeleton.svelte';
 	import ErrorState from '$lib/components/ErrorState.svelte';
 	import Shelf from '$lib/components/Shelf.svelte';
-	import { Skeleton } from '$lib/components/ui/skeleton';
 	import * as api from '$lib/api';
 	import type { ArtistPage, BrowseItem, PlaylistPage } from '$lib/api';
 	import {
@@ -48,6 +46,7 @@
 	let subscribed = $state(false);
 	let subBusy = $state(false);
 	let shuffleBusy = $state(false);
+	let appearsOn = $state<BrowseItem[]>([]);
 
 	const id = $derived(page.params.id ?? '');
 	const nowId = $derived(playback.now?.videoId);
@@ -67,18 +66,33 @@
 		}
 		error = null;
 		expanded = false;
+		appearsOn = getCached<BrowseItem[]>(`appears:${cid}`) ?? [];
 		try {
 			const fresh = await api.getArtist(cid);
 			if (cid !== id) return; // superseded by navigation — drop the stale response
 			artist = fresh;
 			subscribed = fresh.subscribed;
 			putCached(key, fresh);
+			if (!appearsOn.length) loadAppearsOn(cid, fresh);
 		} catch (e) {
 			if (cid !== id) return;
 			if (!hit) error = String(e);
 		} finally {
 			if (cid === id) loading = false;
 		}
+	}
+
+	// Fetched after the page paints: it costs a second browse. Releases already on the artist's own
+	// shelves (a single they co-lead) are dropped. A failure just leaves the shelf off.
+	async function loadAppearsOn(cid: string, a: ArtistPage) {
+		if (!a.topSongsId) return;
+		try {
+			const own = new Set(a.sections.flatMap((s) => s.items.map((i) => i.id)));
+			const items = await api.getArtistAppearsOn(cid, a.topSongsId);
+			if (cid !== id) return;
+			appearsOn = items.filter((i) => !own.has(i.id));
+			putCached(`appears:${cid}`, appearsOn);
+		} catch {}
 	}
 
 	$effect(() => {
@@ -100,7 +114,8 @@
 		id,
 		title: artist?.name ?? t('common.artist_singular'),
 		subtitle: artist?.subscribers,
-		thumbnail: artist?.thumbnail
+		// Cards elsewhere carry the round avatar; the banner is only the fallback.
+		thumbnail: artist?.avatar ?? artist?.thumbnail
 	});
 
 	// Shuffles the whole top-songs playlist (what "See all" opens), not just the 5 rows on this
@@ -165,33 +180,7 @@
 </script>
 
 {#if loading}
-	<div class="relative flex min-h-[45vh] flex-col justify-end overflow-hidden border-b">
-		<Skeleton class="absolute inset-0 h-full w-full rounded-none" />
-		<div class="relative space-y-4 p-8">
-			<Skeleton class="h-12 w-1/2 rounded-lg" />
-			<Skeleton class="h-4 w-40 rounded" />
-			<div class="flex gap-3">
-				<Skeleton class="h-11 w-28 rounded-full" />
-				<Skeleton class="h-11 w-32 rounded-full" />
-			</div>
-		</div>
-	</div>
-	<div class="flex flex-col gap-8 p-6">
-		<section>
-			<Skeleton class="mb-3 h-6 w-32 rounded" />
-			{#each Array(5) as _, i (i)}
-				<TrackRowSkeleton />
-			{/each}
-		</section>
-		<section>
-			<Skeleton class="mb-3 h-6 w-40 rounded" />
-			<div class="flex gap-2 overflow-hidden pb-2">
-				{#each Array(6) as _, i (i)}
-					<div class="w-40 shrink-0"><MediaCardSkeleton /></div>
-				{/each}
-			</div>
-		</section>
-	</div>
+	<div class="flex h-full items-center justify-center"><LimusicLoader /></div>
 {:else if error}
 	<div class="p-6"><ErrorState message={error} onRetry={() => load(id)} /></div>
 {:else if artist}
@@ -325,6 +314,10 @@
 				onMore={section.moreBrowseId ? () => showMore(section) : undefined}
 			/>
 		{/each}
+
+		{#if appearsOn.length}
+			<Shelf title={t('artist.appears_on')} items={appearsOn} />
+		{/if}
 	</div>
 {/if}
 

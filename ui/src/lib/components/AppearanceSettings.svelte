@@ -46,6 +46,7 @@
 		effective,
 		applyTheme,
 		setCustom,
+		syncMatugen,
 		resetCustom,
 		isDefaultCustom,
 		readBack,
@@ -263,7 +264,7 @@
 	control?: Snippet;
 	below?: Snippet;
 })}
-	<div class="px-4 py-3.5">
+	<div data-setting-row class="px-4 py-3.5">
 		<div class="flex min-h-8 items-center justify-between gap-4">
 			<div class="flex min-w-0 items-center gap-2">
 				<span class="text-sm font-medium">{o.title}</span>
@@ -310,7 +311,7 @@
 	<div class="relative min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-5">
 		<section class={GROUP}>
 			<h3 class={LABEL}>{t('settings.sections.theme')}</h3>
-			<div class={CARD}>
+			<div data-settings-card class={CARD}>
 				<!-- Chips, not miniatures: the preview beside this column already shows the chosen
 				     palette in full. Each swatch carries the palette's own classes, so it is the
 				     preset's background and accent whatever is applied on top. -->
@@ -344,13 +345,13 @@
 
 		<section class={GROUP}>
 			<h3 class={LABEL}>{t('settings.sections.colors')}</h3>
-			<div class={CARD}>
+			<div data-settings-card class={CARD}>
 				{@render row({
 					title: t('settings.themes.primary_color'),
 					desc: t('settings.themes.accent_hint'),
 					below: accentSwatches
 				})}
-				{#if theme.id === 'default'}
+				{#if theme.id === 'default' || theme.id === 'material'}
 					{@render row({
 						title: t('settings.themes.background_color'),
 						desc: t('settings.themes.tint_hint'),
@@ -371,12 +372,17 @@
 					desc: t('settings.themes.artwork_accent_hint'),
 					control: artworkAccentSwitch
 				})}
+				{@render row({
+					title: t('settings.themes.matugen'),
+					desc: t('settings.themes.matugen_hint'),
+					control: matugenSwitch
+				})}
 			</div>
 		</section>
 
 		<section class={GROUP}>
 			<h3 class={LABEL}>{t('settings.sections.interface')}</h3>
-			<div class={CARD}>
+			<div data-settings-card class={CARD}>
 				{@render row({
 					title: t('settings.themes.roundness'),
 					desc: t('settings.themes.roundness_hint'),
@@ -393,12 +399,22 @@
 					desc: t('settings.themes.app_icon_hint'),
 					control: appIconButtons
 				})}
+				{@render row({
+					title: t('settings.themes.blur_playlist_header'),
+					desc: t('settings.themes.blur_playlist_header_hint'),
+					control: blurHeaderSwitch
+				})}
+				{@render row({
+					title: t('settings.themes.now_playing_pill'),
+					desc: t('settings.themes.now_playing_pill_hint'),
+					control: nowPlayingPillSwitch
+				})}
 			</div>
 		</section>
 
 		<section class={GROUP}>
 			<h3 class={LABEL}>{t('settings.sections.typography')}</h3>
-			<div class={CARD}>
+			<div data-settings-card class={CARD}>
 				{#each FONT_ROWS as fr (fr.key)}
 					<!-- Zero-arg wrappers: a snippet passed as a value can't carry arguments. -->
 					{#snippet pick()}{@render fontSelect(fr.key, fr.label)}{/snippet}
@@ -421,16 +437,26 @@
 
 		<section class={GROUP}>
 			<h3 class={LABEL}>{t('settings.sections.player_view')}</h3>
-			<div class={CARD}>
+			<div data-settings-card class={CARD}>
 				{@render row({
-					title: t('settings.themes.stage_player'),
-					desc: t('settings.themes.stage_player_hint'),
-					control: stagePlayerSwitch
+					title: t('settings.themes.classic_player'),
+					desc: t('settings.themes.classic_player_hint'),
+					control: classicPlayerSwitch
+				})}
+				{@render row({
+					title: t('settings.themes.cover_lyric_romanized'),
+					desc: t('settings.themes.cover_lyric_romanized_hint'),
+					control: coverLyricRomanizedSwitch
 				})}
 				{@render row({
 					title: t('settings.themes.open_player'),
 					desc: t('settings.themes.open_player_hint'),
 					control: openPlayerSwitch
+				})}
+				{@render row({
+					title: t('settings.themes.empty_click_player'),
+					desc: t('settings.themes.empty_click_player_hint'),
+					control: emptyClickSwitch
 				})}
 				{@render row({
 					title: t('settings.themes.tabbed_player'),
@@ -442,11 +468,27 @@
 					desc: t('settings.themes.artwork_background_hint'),
 					control: artworkBgSwitch
 				})}
+				{@render row({
+					title: t('settings.themes.theater_clock'),
+					desc: t('settings.themes.theater_clock_hint'),
+					control: theaterClockSwitch
+				})}
+				{#if appearance.theaterClock}
+					{@render row({
+						title: t('settings.themes.theater_clock_side'),
+						control: theaterClockSideSelect
+					})}
+					{@render row({
+						title: t('settings.themes.theater_clock_format'),
+						control: theaterClockFormatSelect
+					})}
+				{/if}
 			</div>
 		</section>
 	</div>
 
 	<aside
+		data-settings-aside
 		class="flex shrink-0 gap-3 bg-muted/30 px-5 py-5 lg:w-[22rem] lg:flex-col lg:border-l max-lg:items-center max-lg:border-b max-lg:py-3"
 	>
 		<h3 class="{LABEL} max-lg:hidden">{t('settings.themes.preview')}</h3>
@@ -495,6 +537,7 @@
 		     there, so it shows the preset's colour even while a custom one is applied. -->
 		<button
 			type="button"
+			disabled={appearance.matugen}
 			onclick={() => commit({ accent: null })}
 			aria-pressed={!accentNow}
 			aria-label={t('settings.themes.accent_theme')}
@@ -513,6 +556,7 @@
 		{#each ACCENTS as hex (hex)}
 			<button
 				type="button"
+				disabled={appearance.matugen}
 				onclick={() => commit({ accent: hex })}
 				aria-pressed={accentNow === hex}
 				aria-label="{t('a11y.choose_accent')}: {hex}"
@@ -537,6 +581,7 @@
 		>
 			<!-- A hue wheel until a colour of your own is picked, then that colour. -->
 			<Popover.Trigger
+				disabled={appearance.matugen}
 				aria-label={t('a11y.choose_accent')}
 				title={t('a11y.choose_accent')}
 				class="flex size-7 cursor-pointer items-center justify-center rounded-full ring-offset-2 ring-offset-card {customAccent ||
@@ -562,7 +607,7 @@
 			</Popover.Content>
 		</Popover.Root>
 	</div>
-	{#if appearance.artworkAccent && playback.now}
+	{#if appearance.artworkAccent && !appearance.matugen && playback.now}
 		<p class="mt-3 max-w-prose text-xs leading-relaxed text-muted-foreground">
 			{t('settings.themes.accent_artwork_note')}
 		</p>
@@ -642,15 +687,91 @@
 
 {#snippet artworkAccentSwitch()}<Switch
 		checked={appearance.artworkAccent}
+		disabled={appearance.matugen}
 		onCheckedChange={(on) => setAppearance({ artworkAccent: on })}
 	/>{/snippet}
-{#snippet stagePlayerSwitch()}<Switch
-		checked={appearance.stagePlayer}
-		onCheckedChange={(on) => setAppearance({ stagePlayer: on })}
+{#snippet matugenSwitch()}<Switch
+		checked={appearance.matugen}
+		onCheckedChange={async (on) => {
+			pickerOpen = false;
+			setAppearance({ matugen: on });
+			await syncMatugen();
+		}}
+	/>{/snippet}
+{#snippet blurHeaderSwitch()}<Switch
+		checked={appearance.blurPlaylistHeader}
+		onCheckedChange={(on) => setAppearance({ blurPlaylistHeader: on })}
+	/>{/snippet}
+{#snippet nowPlayingPillSwitch()}<Switch
+		checked={appearance.nowPlayingPill}
+		onCheckedChange={(on) => setAppearance({ nowPlayingPill: on })}
+	/>{/snippet}
+{#snippet theaterClockSwitch()}<Switch
+		checked={appearance.theaterClock}
+		onCheckedChange={(on) => setAppearance({ theaterClock: on })}
+	/>{/snippet}
+
+{#snippet theaterClockSideSelect()}
+	<Select.Root
+		type="single"
+		value={appearance.theaterClockSide}
+		onValueChange={(v) => setAppearance({ theaterClockSide: v as 'left' | 'right' })}
+	>
+		<Select.Trigger class="w-44 shrink-0" aria-label={t('settings.themes.theater_clock_side')}>
+			<span class="min-w-0 flex-1 truncate text-left">
+				{appearance.theaterClockSide === 'left'
+					? t('settings.themes.theater_clock_left')
+					: t('settings.themes.theater_clock_right')}
+			</span>
+		</Select.Trigger>
+		<Select.Content>
+			<Select.Item value="left" label={t('settings.themes.theater_clock_left')}>
+				{t('settings.themes.theater_clock_left')}
+			</Select.Item>
+			<Select.Item value="right" label={t('settings.themes.theater_clock_right')}>
+				{t('settings.themes.theater_clock_right')}
+			</Select.Item>
+		</Select.Content>
+	</Select.Root>
+{/snippet}
+
+{#snippet theaterClockFormatSelect()}
+	<Select.Root
+		type="single"
+		value={appearance.theaterClockFormat}
+		onValueChange={(v) => setAppearance({ theaterClockFormat: v as 'auto' | '12' | '24' })}
+	>
+		<Select.Trigger class="w-44 shrink-0" aria-label={t('settings.themes.theater_clock_format')}>
+			<span class="min-w-0 flex-1 truncate text-left">
+				{t(`settings.themes.theater_clock_format_${appearance.theaterClockFormat}`)}
+			</span>
+		</Select.Trigger>
+		<Select.Content>
+			{#each ['auto', '12', '24'] as const as f (f)}
+				<Select.Item value={f} label={t(`settings.themes.theater_clock_format_${f}`)}>
+					{t(`settings.themes.theater_clock_format_${f}`)}
+				</Select.Item>
+			{/each}
+		</Select.Content>
+	</Select.Root>
+{/snippet}
+
+{#snippet classicPlayerSwitch()}<Switch
+		checked={appearance.classicPlayer}
+		onCheckedChange={(on) => setAppearance({ classicPlayer: on })}
+	/>{/snippet}
+{#snippet coverLyricRomanizedSwitch()}<Switch
+		checked={appearance.coverLyricRomanized}
+		disabled={appearance.classicPlayer}
+		onCheckedChange={(on) => setAppearance({ coverLyricRomanized: on })}
 	/>{/snippet}
 {#snippet openPlayerSwitch()}<Switch
 		checked={appearance.openPlayerOnPlay}
 		onCheckedChange={(on) => setAppearance({ openPlayerOnPlay: on })}
+	/>{/snippet}
+{#snippet emptyClickSwitch()}<Switch
+		checked={appearance.emptyClickTogglesPlayer}
+		onCheckedChange={(on) => setAppearance({ emptyClickTogglesPlayer: on })}
 	/>{/snippet}
 {#snippet tabbedSwitch()}<Switch
 		checked={appearance.tabbedPlayer}
@@ -660,7 +781,6 @@
 		checked={appearance.artworkBackground}
 		onCheckedChange={(on) => setAppearance({ artworkBackground: on })}
 	/>{/snippet}
-
 {#snippet fontSelect(key: FontKey, label: string)}
 	<Select.Root
 		type="single"

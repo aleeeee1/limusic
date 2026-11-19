@@ -138,7 +138,6 @@
 		"volume": "音量",
 		"queue": "播放队列",
 		"lyrics": "歌词",
-		"mini_player": "迷你播放器",
 		"theater_mode": "影院模式",
 		"playing_from": "播放来源",
 		"exit_theater": "退出影院模式",
@@ -220,9 +219,6 @@
 		"sections_hint": "拖动分区可移动，或聚焦其手柄并使用方向键。隐藏的分区会保留位置。",
 		"move_section": "移动“{title}”",
 		"moved_section": "{title} 已移动到第 {position}/{total} 位",
-		"new_section": "新分区",
-		"show_new": "显示新分区",
-		"show_new_desc": "YouTube 会不时添加和重命名版块栏目。关闭后，它们会以隐藏状态显示并在此等待，直到你将其开启。",
 		"all_hidden": "首页上的所有内容均已关闭。"
 	},
 	"history": {
@@ -386,10 +382,8 @@
 		"themes": {
 			"interface_font": "界面字体",
 			"load_font_file": "从文件加载字体",
-			"custom_colors": "自定义颜色",
 			"primary_color": "主强调色",
 			"background_color": "背景",
-			"reset_theme": "重置为默认主题",
 			"your_fonts": "你的字体",
 			"custom_font": "自定义…",
 			"font_placeholder": "此电脑上已安装的字体，例如 Inter",
@@ -516,8 +510,6 @@
 			"action_show_app_hint": "将 Limusic 窗口带到前台。"
 		},
 		"data": {
-			"clear_cache": "清除图像和流缓存",
-			"clear_cache_hint": "通过清除缓存的缩略图和音频块来释放磁盘空间。",
 			"clear_cache_button": "立即清除缓存"
 		},
 		"about": {
@@ -897,7 +889,6 @@
 			"lyricsplus": "Apple Music 歌词，逐词显示，并带有 Apple 自己的罗马化。",
 			"lrclib": "开放同步歌词库。覆盖范围最广。",
 			"youtube": "YouTube Music 自己的歌词，在其获得授权时可用。",
-			"simpmusic": "与确切 YouTube 上传内容匹配的社区歌词，包含前奏。",
 			"netease": "大型中文曲库。为许多歌曲添加中文翻译。",
 			"qq": "中文曲库，擅长华语流行和粤语流行。",
 			"kugou": "中文曲库，适合较冷门曲目。"

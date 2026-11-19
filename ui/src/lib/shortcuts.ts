@@ -3,7 +3,17 @@
 // shortcuts list shows is exactly what fires. Zoom keeps its own listener (zoom.svelte.ts) because
 // it also owns the ctrl+wheel gesture, and the global OS-level hotkeys live in hotkeys.svelte.ts.
 import * as api from './api';
-import { cycleRepeat, np, nudgeVolume, playback, refreshView, toggleMute, ui } from './player.svelte';
+import {
+	cycleRepeat,
+	np,
+	nudgeVolume,
+	playback,
+	refreshView,
+	skipBy,
+	toggleMute,
+	toggleNowPlayingRating,
+	ui
+} from './player.svelte';
 import { keybinds } from './keybinds.svelte';
 import { comboFromEvent, isLocalBindable, parseCombo, IS_MAC } from './keycombo';
 import { setZoom, stepZoom } from './zoom.svelte';
@@ -25,13 +35,34 @@ export const keyOf = (e: KeyboardEvent): string => {
 	return k;
 };
 
+/** Seconds per ← / → press, the same jump as the global seek hotkeys. */
+export const SEEK_SECS = 10;
+
+/** Focused things that use the arrow keys themselves. */
+const ARROW_OWNERS =
+	'input,textarea,select,[contenteditable],[role=slider],[role=dialog],[role=alertdialog],[role=menu],[role=listbox],[role=tablist],[role=radiogroup]';
+
 /** Percent per press, matching a step of the volume slider's arrow keys. */
 const VOLUME_STEP = 5;
 
-/** Somewhere a bare space or `;` is a character, not a command. */
+const ARROWS: Record<string, () => void> = {
+	ArrowLeft: () => skipBy(-SEEK_SECS),
+	ArrowRight: () => skipBy(SEEK_SECS),
+	ArrowUp: () => nudgeVolume(VOLUME_STEP),
+	ArrowDown: () => nudgeVolume(-VOLUME_STEP)
+};
+
+/** Somewhere a bare space or `;` is a character, not a command. A slider (seek bar, volume) is an
+ *  input but types nothing, so a click on it no longer leaves Space dead (#574). */
 export const typing = (t: EventTarget | null) =>
 	t instanceof HTMLElement &&
-	(t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
+	(t.isContentEditable ||
+		['TEXTAREA', 'SELECT'].includes(t.tagName) ||
+		(t instanceof HTMLInputElement && t.type !== 'range'));
+
+/** Where focus a click left behind stays put: see `onFocus` below. */
+const KEEPS_FOCUS =
+	'[role=dialog],[role=alertdialog],[role=menu],[role=listbox],[data-selected],[data-track-selection]';
 
 /** The mini window renders none of the chrome these toggle, and it has no page to reload, so it
  *  keeps the bindings for everything else but not these. */
@@ -55,6 +86,20 @@ export function initShortcuts(mini = false) {
 		if (e.defaultPrevented) return;
 		// A rebind owns the keyboard. It stops propagation as well; this is belt and braces.
 		if (keybinds.recording) return;
+		// ← / → seek, 10 s like the global hotkeys (#570), ↑ / ↓ step the volume. Bare arrows are
+		// not in the editable list (they are modifiers of "playback in progress", not commands the
+		// user rebinds), and they never fire while something focused owns them: a field, a slider
+		// (volume, seek bar), a menu, a list, a dialog. With nothing playing, ↑ / ↓ scroll the page.
+		if (!e.ctrlKey && !e.metaKey) {
+			const arrow = ARROWS[e.key];
+			if (arrow) {
+				if (!playback.now || typing(e.target) || e.altKey || e.shiftKey) return;
+				if (e.target instanceof HTMLElement && e.target.closest(ARROW_OWNERS)) return;
+				arrow();
+				e.preventDefault();
+				return;
+			}
+		}
 		const combo = comboFromEvent(e);
 		if (!combo) return;
 		const action = keybinds.actionFor(combo);
@@ -88,6 +133,11 @@ export function initShortcuts(mini = false) {
 			case 'now_playing':
 				if (!playback.now) return;
 				np.open = !np.open;
+				break;
+			// #621. A local file has no YouTube identity to rate, as in the player bar.
+			case 'like':
+				if (!playback.now || api.isLocalId(playback.now.videoId)) return;
+				toggleNowPlayingRating();
 				break;
 			case 'next':
 				api.nextTrack();
@@ -130,6 +180,35 @@ export function initShortcuts(mini = false) {
 		}
 		e.preventDefault();
 	};
+	// A click leaves focus on what it hit (a track row, a tab, the artwork), and every key after it
+	// went there: Space replayed the clicked row instead of pausing (#551), Enter clicked the artwork
+	// again, and the keypress lit a focus ring. So focus that lands while the pointer is driving is
+	// dropped, including a menu handing it back to its trigger on close. Fields keep it, and so do open
+	// menus, lists and dialogs, and track select mode (its rows and bar take Space, Escape and Ctrl+A
+	// themselves). Tab hands focus back to the keyboard until the next click, so the app can still be
+	// walked with a ring.
+	let pointer = true;
+	const onPointer = () => (pointer = true);
+	const onTab = (e: KeyboardEvent) => {
+		if (e.key === 'Tab') pointer = false;
+	};
+	const onFocus = (e: FocusEvent) => {
+		const t = e.target;
+		if (!pointer || !(t instanceof HTMLElement) || typing(t)) return;
+		if (t.closest(KEEPS_FOCUS)) return;
+		// On the next tick, not here: WebKit and Chromium count focus moved inside a focus handler
+		// as a blocked focus change and swallow the mousedown that caused it, so no drag could start
+		// on a track row, a queue row or a card. Unless focus has already gone somewhere else.
+		setTimeout(() => document.activeElement === t && t.blur());
+	};
 	window.addEventListener('keydown', onKey);
-	return () => window.removeEventListener('keydown', onKey);
+	window.addEventListener('pointerdown', onPointer, true);
+	window.addEventListener('keydown', onTab, true);
+	window.addEventListener('focusin', onFocus);
+	return () => {
+		window.removeEventListener('keydown', onKey);
+		window.removeEventListener('pointerdown', onPointer, true);
+		window.removeEventListener('keydown', onTab, true);
+		window.removeEventListener('focusin', onFocus);
+	};
 }

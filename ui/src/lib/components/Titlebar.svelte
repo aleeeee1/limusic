@@ -16,16 +16,17 @@
 		Refresh03Icon,
 		MinusSignIcon,
 		SquareIcon,
+		CopyIcon,
 		Cancel01Icon,
 		MinimizeScreenIcon,
 		CameraVideoIcon,
 		CheckmarkCircle01Icon,
-		Loading03Icon,
 		HotspotOfflineIcon,
 		UserGroup02Icon,
 		Link04Icon,
 		Settings02Icon
 	} from '@hugeicons/core-free-icons';
+	import LimusicLoader from './LimusicLoader.svelte';
 	import LastFmIcon from './LastFmIcon.svelte';
 	import DiscordIcon from './DiscordIcon.svelte';
 	import AccountMenu from './AccountMenu.svelte';
@@ -37,6 +38,7 @@
 	import { anchorMenu, fitMenu, NO_ANCHOR } from '$lib/menu';
 	import { t } from '$lib/i18n.svelte';
 	import { connectLastfm, disconnectLastfm, lastfm, watchLastfm } from '$lib/lastfm.svelte';
+	import { watchListenBrainz } from '$lib/listenbrainz.svelte';
 
 	// `w` is this window; `win` (imported) is the shared frame state.
 	const w = getCurrentWindow();
@@ -80,6 +82,7 @@
 	}
 
 	onMount(watchLastfm);
+	onMount(watchListenBrainz);
 
 	function onScrobblerClick(e: MouseEvent) {
 		if (connecting) {
@@ -122,15 +125,19 @@
 </script>
 
 <!-- `relative` makes this a stacking context, so the account/window dropdowns inside it are capped
-     at this z — it must outrank the panels below (LyricsPanel/QueuePanel, z-30). Theater mode is
+     at this z: it must outrank the panels below (LyricsPanel/QueuePanel, z-30). Theater mode is
      the exception: it sits at z-40 so dialogs (z-50) can open over it, so the bar has to duck
-     under it instead of the other way round. -->
+     under it instead of the other way round. Modal backdrops sit at z-[49], under this bar, so the
+     window can still be dragged and closed with a dialog open (#427). pointer-events-auto because
+     an open dialog sets `pointer-events: none` on <body>; `data-window-control` marks the buttons
+     that don't dismiss it (`onWindowChrome`). -->
 <header
 	data-tauri-drag-region
-	class="relative {ui.theaterOpen ? 'z-0' : 'z-50'} flex h-9 shrink-0 select-none items-center justify-between border-b border-border/60 bg-background"
+	class="pointer-events-auto relative {ui.theaterOpen ? 'z-0' : 'z-50'} flex h-9 shrink-0 select-none items-center justify-between border-b border-border/60 bg-background"
 >
+	<!-- Centred on the window, so below about 800px the icons on the right run into it (#688). -->
 	<span
-		class="pointer-events-none absolute inset-x-0 text-center text-xs font-medium tracking-wide text-muted-foreground"
+		class="pointer-events-none absolute inset-x-0 hidden text-center text-xs font-medium tracking-wide text-muted-foreground min-[50rem]:block"
 	>
 		Limusic
 	</span>
@@ -138,7 +145,9 @@
 	<!-- macOS overlay style floats the traffic lights over the top-left of the webview, so the row
 	     starts clear of them. `trafficLightPosition` in tauri.macos.conf.json centres them in this
 	     36px bar and insets them 14px (#189); they end near 68px, so 70px plus the logo's margin
-	     leaves about as much space after them as before them. -->
+	     leaves about as much space after them as before them. Its `y` is not a top margin: tao
+	     sizes the titlebar to the 16px button plus `y` and the buttons keep their offset from its
+	     bottom, so their centre lands at y + 2 (y: 10 moved them up 2px on a real Mac). -->
 	<div class="flex h-full items-center {win.chrome === 'overlay' ? 'pl-[70px]' : ''}">
 		<!-- pointer-events-none: the logo is decoration; clicks on it should drag the window. -->
 		<img src={appIcon.src} alt="" class="pointer-events-none ml-3 mr-1 h-4 w-4" />
@@ -248,11 +257,7 @@
 			<span class="relative">
 				<LastFmIcon class="h-4 w-4 {connecting ? 'animate-pulse opacity-60' : ''}" />
 				{#if connecting}
-					<HugeiconsIcon
-						icon={Loading03Icon}
-						strokeWidth={2.5}
-						class="absolute -bottom-1.5 -right-2 h-3.5 w-3.5 animate-spin text-primary"
-					/>
+					<LimusicLoader class="absolute -bottom-1.5 -right-2 size-4" />
 				{:else if connected}
 					<!-- bg-background ring so the badge reads over the icon's stroke. -->
 					<HugeiconsIcon
@@ -292,22 +297,38 @@
 		{#if win.chrome === 'off'}
 			<div class="mx-1.5 h-4 w-px bg-border"></div>
 
-			<button
-				class="flex h-full w-11 items-center justify-center text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
-				onclick={() => w.minimize()}
-				aria-label={t('common.minimize')}
-			>
-				<HugeiconsIcon icon={MinusSignIcon} class="h-4 w-4" />
-			</button>
-			<button
-				class="flex h-full w-11 items-center justify-center text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
-				onclick={() => w.toggleMaximize()}
-				aria-label={t('common.maximize')}
-			>
-				<HugeiconsIcon icon={SquareIcon} class="h-3.5 w-3.5" />
-			</button>
+			<!-- Minimize and maximize follow the desktop's button layout (#481). -->
+			{#if win.minimize}
+				<button
+					class="flex h-full w-11 items-center justify-center text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+					data-window-control
+					onclick={() => w.minimize()}
+					aria-label={t('common.minimize')}
+				>
+					<HugeiconsIcon icon={MinusSignIcon} class="h-4 w-4" />
+				</button>
+			{/if}
+			{#if win.maximize}
+				<button
+					class="flex h-full w-11 items-center justify-center text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+					data-window-control
+					onclick={() => w.toggleMaximize()}
+					aria-label={win.maximized ? t('common.restore') : t('common.maximize')}
+				>
+					<!-- Maximized: the restore glyph, two overlapping squares with the front one low-left.
+					     That is CopyIcon turned half a turn. altIcon/showAlt, since `icon` is frozen at
+					     mount (#428). -->
+					<HugeiconsIcon
+						icon={SquareIcon}
+						altIcon={CopyIcon}
+						showAlt={win.maximized}
+						class="h-3.5 w-3.5 {win.maximized ? 'rotate-180' : ''}"
+					/>
+				</button>
+			{/if}
 			<button
 				class="flex h-full w-11 items-center justify-center text-muted-foreground transition-colors hover:text-destructive"
+				data-window-control
 				onclick={() => w.close()}
 				aria-label={t('common.close')}
 			>

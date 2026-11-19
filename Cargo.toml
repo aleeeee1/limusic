@@ -5,15 +5,17 @@ members = [
     "crates/player",
     "crates/listen-protocol",
     "crates/sync-server",
+    "crates/karaoke",
     "src-tauri",
 ]
 
 [workspace.package]
-version = "1.2.0"
+version = "1.4.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 
 [workspace.dependencies]
+notify = "8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
@@ -32,3 +34,19 @@ listen-protocol = { path = "crates/listen-protocol" }
 lto = "thin"
 codegen-units = 1
 strip = "symbols"
+
+# karaoke DSP is far too slow unoptimized in dev builds
+[profile.dev.package.karaoke]
+opt-level = 3
+
+[profile.dev.package.realfft]
+opt-level = 3
+
+[profile.dev.package.flacenc]
+opt-level = 3
+
+[profile.dev.package.rubato]
+opt-level = 3
+
+[profile.dev.package.ort]
+opt-level = 3

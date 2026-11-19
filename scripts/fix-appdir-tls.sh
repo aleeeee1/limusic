@@ -2,7 +2,8 @@
 # Repair the bundled AppDir so it runs on hosts that aren't the build machine, then repack and
 # re-sign the AppImage in place.
 #
-# Six defects. The first five are linuxdeploy's; the sixth is Ubuntu's gnutls.
+# Eight defects. The first five are linuxdeploy's, the sixth is Ubuntu's gnutls, the seventh the GTK
+# hook's, the eighth Ubuntu's libxkbcommon.
 #
 #   1. GIO_EXTRA_MODULES is written with a literal newline in it, plus an absolute path into the
 #      build machine's own target/ directory. GLib parses one garbage path, finds no module, and
@@ -57,8 +58,28 @@
 #      trust anchors and every HTTPS load in the webview failed as "Unacceptable TLS certificate":
 #      no sign-in, no thumbnails, no music video (issue #164). Rust is unaffected, it carries
 #      rustls, so the app looks alive. Fixed by moving the gnutls stack off the library path so the
-#      host's own copy, which knows where the host's trust store is, is what loads. Conditionally:
-#      see 1e, Arch cannot serve the chain and keeps ours.
+#      host's own copy, which knows where the host's trust store is, is what loads. Conditionally,
+#      see 1e and 2a: Arch, on nettle 4.0, keeps ours, and openSUSE, on nettle 4.0 since October
+#      2026, runs its own gnutls next to our nettle 3.
+#
+#   7. The GTK hook exports GDK_BACKEND=x11 over whatever the user set, so every AppImage ran
+#      through XWayland on a Wayland session. On NVIDIA that is the costly SHM path once WebKit is
+#      accelerated (`run()` in lib.rs), and on every GPU a frame costs more to present than on
+#      Wayland. The reason the hook gives, tauri#8541, was an abort in Ubuntu 20.04's GTK 3.24.20
+#      reading an xsettings key GNOME has since removed; the 3.24.41 we bundle reads the new key.
+#      Fixed by deleting the line, so GTK picks its backend itself and a user's own GDK_BACKEND
+#      counts again. `LIMUSIC_GDK_BACKEND=x11` forces X11 when a desktop needs it. On Wayland GTK
+#      reads the desktop's settings through GSettings, which is why 1b2 bundles the dconf module.
+#
+#   8. libxkbcommon compiles keymaps from the host's XKB data (/usr/share/X11/xkb, plus the user's
+#      own ~/.config/xkb), so it has to be at least as new as that data, and Ubuntu 24.04's 1.6 is
+#      not. A user override that pulls in the system file with `include "%S/complete"` is valid
+#      since libxkbcommon learned %S in include statements; 1.6 looks for a file literally named
+#      "%S/complete", the keymap fails to compile, and GTK on Wayland, which compiles the default
+#      keymap at startup, dereferences the NULL and segfaults (#693, host libxkbcommon 1.13). Defect
+#      7's fix exposed it: through XWayland GTK takes its keymap from the X server and never
+#      compiles one. Fixed by deleting our copy so the host's loads, parser and data from the same
+#      distro. Same soname everywhere, versioned additive ABI, and GTK 3 itself depends on it.
 #
 # ON PRUNING. v0.2.11 pruned eight libraries and broke worse than what it fixed, so the bar is high,
 # but "never prune" is the wrong rule — defect 3 above is only fixable by pruning. What made v0.2.11
@@ -103,7 +124,7 @@ HOST_BASELINE="libGL.so.1 libEGL.so.1 libGLX.so.0 libGLdispatch.so.0 libOpenGL.s
   libdrm.so.2 libgbm.so.1 libwayland-client.so.0 libX11.so.6 libX11-xcb.so.1 libxcb.so.1
   libxcb-dri3.so.0 libexpat.so.1 libfontconfig.so.1 libfreetype.so.6 libharfbuzz.so.0
   libfribidi.so.0 libz.so.1 libasound.so.2 libusb-1.0.so.0 libcom_err.so.2 libgpg-error.so.0
-  libresolv.so.2 libgcc_s.so.1 libstdc++.so.6
+  libresolv.so.2 libgcc_s.so.1 libstdc++.so.6 libxkbcommon.so.0
   libgnutls.so.30 libnettle.so.8 libhogweed.so.6 libgmp.so.10 libtasn1.so.6 libp11-kit.so.0
   libidn2.so.0 libunistring.so.5"
 
@@ -159,9 +180,9 @@ for m in "$APPDIR"/usr/lib/gio/modules/*.so "$APPDIR"/usr/lib64/gio/modules/*.so
 done
 
 # 1b. The gio TLS module. linuxdeploy's GTK plugin bundles it on Fedora but not on Ubuntu, so copy
-#     it in ourselves rather than depend on that. Only this one module: gvfs and libproxy are built
-#     against the host's GLib and blow up against the older one we bundle, which is exactly what
-#     v0.2.11 shipped.
+#     it in ourselves rather than depend on that. Only this one and the dconf module (1b2): gvfs and
+#     libproxy are built against the host's GLib and blow up against the older one we bundle, which
+#     is exactly what v0.2.11 shipped.
 if ls "$APPDIR"/usr/lib/gio/modules/libgiognutls.so >/dev/null 2>&1; then
   echo "==> gio TLS module already bundled"
 else
@@ -177,13 +198,37 @@ else
   bundle_deps_of "$TLSMOD"
 fi
 
-# 1c. Drop libwayland-client. It has to be the host's copy, because the host's Mesa is linked
-#     against it and we are first on LD_LIBRARY_PATH — see defect 3 in the header. Everything the
-#     bundle needs from it exists in 1.22, and every host that can open a window ships a newer one.
-for lib in "$APPDIR"/usr/lib/libwayland-client.so.0*; do
+# 1b2. The dconf GSettings module, built against the GLib we bundle. Without it GSettings falls back
+#      to its in-memory backend and reads nothing but schema defaults. On X11 nobody noticed, because
+#      the desktop hands GTK its settings over XSETTINGS; on Wayland (defect 7) GTK reads them through
+#      GSettings, and a KDE window came up with a close button only, Adwaita cursors, Cantarell and
+#      Adwaita icons. With it, the user's button layout, cursor, fonts and icon theme, exactly as
+#      `cargo tauri dev` reads them. The database format and the dconf service it writes through are
+#      the host's, and both have been stable for a decade.
+if [ -e "$APPDIR/usr/lib/gio/modules/libdconfsettings.so" ]; then
+  echo "==> dconf GSettings module already bundled"
+else
+  DCONFMOD=""
+  for dir in "$(pkg-config --variable=giomoduledir gio-2.0 2>/dev/null || true)" \
+             /usr/lib/x86_64-linux-gnu/gio/modules /usr/lib64/gio/modules /usr/lib/gio/modules; do
+    [ -n "$dir" ] && [ -e "$dir/libdconfsettings.so" ] && { DCONFMOD="$dir/libdconfsettings.so"; break; }
+  done
+  [ -n "$DCONFMOD" ] || {
+    echo "libdconfsettings.so not found: install dconf-gsettings-backend on the build host"; exit 1; }
+  mkdir -p "$APPDIR/usr/lib/gio/modules"
+  cp -L "$DCONFMOD" "$APPDIR/usr/lib/gio/modules/libdconfsettings.so"
+  echo "==> bundled the dconf GSettings module from $DCONFMOD"
+  bundle_deps_of "$DCONFMOD"
+fi
+
+# 1c. Drop libwayland-client and libxkbcommon. Both have to be the host's copy: the host's Mesa is
+#     linked against libwayland-client (defect 3) and libxkbcommon parses the host's XKB data
+#     (defect 8), and we are first on LD_LIBRARY_PATH. Everything the bundle needs from either
+#     exists in Ubuntu's version, and every host that can open a window ships one at least as new.
+for lib in "$APPDIR"/usr/lib/libwayland-client.so.0* "$APPDIR"/usr/lib/libxkbcommon.so.0*; do
   [ -e "$lib" ] || continue
   rm -f "$lib"
-  echo "==> removed $(basename "$lib") — the host's Mesa must link its own"
+  echo "==> removed $(basename "$lib"): it has to be the host's copy"
 done
 
 # 1d. GStreamer plugins, so the webview can decode a music video. See defect 5 in the header.
@@ -255,9 +300,16 @@ fi
 #     Moved rather than deleted, because which copy wins is a runtime decision (2a). libavformat
 #     DT_NEEDs libgnutls and libarchive DT_NEEDs libnettle.so.8, so both are load-time dependencies
 #     of the app itself: a host that cannot serve the whole chain would go from "sign-in is broken"
-#     to "does not start", which is worse than the bug being fixed. Arch is exactly that host, its
-#     nettle 4.0 is libnettle.so.9. So the copies sit in a subdirectory the loader never looks in
-#     and 2a puts it back on the path when the host comes up short.
+#     to "does not start", which is worse than the bug being fixed. So the copies sit in a
+#     subdirectory the loader never looks in and 2a puts it back on the path when the host comes up
+#     short.
+#
+#     A host on nettle 4.0 (libnettle.so.9) is short only of nettle 3 itself, for libarchive and
+#     libsrt. Both can live in one process: different sonames, and every symbol is versioned
+#     (NETTLE_8 against NETTLE_9), so neither side binds the other's. nettle/ holds a second copy of
+#     just those two, for a host where our gnutls would find no trust store: it only reads
+#     /etc/ssl/certs/ca-certificates.crt. Taking the whole stack there is what left openSUSE with
+#     zero anchors once it moved to nettle 4.0.
 #
 #     Measured against the shipped 0.6.8 AppDir in containers, trust anchors reachable by the
 #     webview's TLS stack, before -> after: openSUSE 0 -> 435, Debian 121 -> 121, Fedora 388 -> 388,
@@ -275,6 +327,8 @@ for soname in $GNUTLS_STACK; do
     echo "==> moved $(basename "$lib") into gnutls-fallback/"
   done
 done
+mkdir -p "$FALLBACK/nettle"
+cp -a "$FALLBACK"/libnettle.so.8* "$FALLBACK"/libhogweed.so.6* "$FALLBACK/nettle/"
 # p11-kit's module directory goes with it: nothing can load those without libp11-kit.so.0 anyway.
 rm -rf "$APPDIR/usr/lib/pkcs11" "$APPDIR/usr/lib64/pkcs11"
 [ -e "$FALLBACK/libgnutls.so.30" ] || {
@@ -329,23 +383,30 @@ grep -q 'gnutls-fallback' "$HOOK" || cat >> "$HOOK" <<'EOF'
 # bundle anywhere else (openSUSE) ours leaves the webview trusting nothing. The host's own gnutls
 # knows where the host's trust store is.
 #
-# That only works when the host can serve the whole chain, because a soname is loaded once per
-# process: the host's gnutls resolves libnettle.so.8 to ours if ours is on the path, and 3.8.10+
-# wants a symbol our nettle 3.9 does not have. So it is all of the host's or all of ours. Arch is
-# the "all of ours" case — nettle 4.0 there is libnettle.so.9, which cannot serve the bundled
-# libarchive and libsrt, so we put our own copies back and accept the compiled-in trust path, which
-# is the file Arch actually has. Whatever this picks, the check in scripts/appdir-foreign-check.sh
-# counts the trust anchors that come out of it.
-_gnutls_host=1
-for _so in libgnutls.so.30 libnettle.so.8 libhogweed.so.6; do
-  _found=""
+# A soname is loaded once per process, so the host's gnutls resolves libnettle.so.8 to ours if ours
+# is on the path, and 3.8.10+ wants a symbol our nettle 3.9 does not have. So:
+#   - the host has gnutls and nettle 3 (.so.8): all of the host's, nothing added;
+#   - otherwise, wherever ours finds its trust store, or the host has no gnutls: all of ours. Arch,
+#     on nettle 4.0 (.so.9) with the file ours reads;
+#   - otherwise the host's gnutls plus our nettle 3 alone, for the bundled libarchive and libsrt.
+#     openSUSE, on nettle 4.0 without that file. Our symbols are NETTLE_8 and the host's NETTLE_9,
+#     so the two never bind each other's.
+# Whatever this picks, scripts/appdir-foreign-check.sh counts the trust anchors that come out of it.
+_has() {
   for _d in /usr/lib/x86_64-linux-gnu /usr/lib64 /usr/lib /lib64 /lib/x86_64-linux-gnu; do
-    [ -e "$_d/$_so" ] && { _found=1; break; }
+    [ -e "$_d/$1" ] && return 0
   done
-  [ -n "$_found" ] || _gnutls_host=""
-done
-[ -n "$_gnutls_host" ] || export LD_LIBRARY_PATH="$APPDIR/usr/lib/gnutls-fallback${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-unset _gnutls_host _so _found _d
+  return 1
+}
+if _has libgnutls.so.30 && _has libnettle.so.8 && _has libhogweed.so.6; then
+  :
+elif [ -e /etc/ssl/certs/ca-certificates.crt ] || ! _has libgnutls.so.30; then
+  export LD_LIBRARY_PATH="$APPDIR/usr/lib/gnutls-fallback${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+else
+  export LD_LIBRARY_PATH="$APPDIR/usr/lib/gnutls-fallback/nettle${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+fi
+unset -f _has
+unset _d
 EOF
 
 # 2b. Point GStreamer at the bundled plugins. Same shape as GIO_MODULE_DIR above and for the same
@@ -377,6 +438,18 @@ for f in "$GSTDIR"/libgst*.so; do [ -e "$f" ] && GSTPLUGINS=$((GSTPLUGINS + 1));
   echo "no GStreamer plugins bundled: the webview would abort on the first music video"
   exit 1; }
 echo "==> bundled GStreamer plugins: $GSTPLUGINS"
+
+# 2c. Stop the hook forcing X11 (defect 7). Deleted rather than overridden by an append: an append
+#     can only replace the hook's value, and the user's own GDK_BACKEND is gone by then. Matched on
+#     the assignment, not the whole line, so a reworded comment after it still matches; if the hook
+#     ever spells it some other way, stop rather than ship an AppImage that still forces X11.
+echo "==> Removing the hook's GDK_BACKEND=x11…"
+sed -i '/^[[:space:]]*export GDK_BACKEND=x11\b/d' "$HOOK"
+if grep -q 'GDK_BACKEND' "$HOOK"; then
+  grep -n 'GDK_BACKEND' "$HOOK"
+  echo "the GTK hook still sets GDK_BACKEND: did linuxdeploy-plugin-gtk change how it writes it?"
+  exit 1
+fi
 
 # 3. Repack with the packer Tauri already downloaded for the original bundle.
 # Globbed, not hardcoded: the exact filename is Tauri's business and CI runs a different CLI version.

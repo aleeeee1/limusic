@@ -14,9 +14,16 @@
 // through — the customization is a set of overrides, not a rival theme to maintain.
 
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { hexToHsv, isLight } from './color';
+import { logUi } from './errlog';
+import { hexToHsv, hexToOklch, isLight } from './color';
 import { artworkAccent, toAccent, warmAccent } from './artcolor';
-import { allowFontFile } from './api';
+import {
+	allowFontFile,
+	getMatugenTheme,
+	onMatugenThemeChanged,
+	startMatugenWatcher,
+	stopMatugenWatcher
+} from './api';
 
 export type ThemeId =
 	| 'default'
@@ -25,7 +32,8 @@ export type ThemeId =
 	| 'caffeine'
 	| 'neon'
 	| 'breeze'
-	| 'amoled';
+	| 'amoled'
+	| 'material';
 
 // `color` is just the picker swatch.
 type Theme = { id: ThemeId; label: string; color: string };
@@ -37,7 +45,8 @@ export const THEMES: Theme[] = [
 	{ id: 'caffeine', label: 'Caffeine', color: 'oklch(0.4341 0.0392 41.9938)' },
 	{ id: 'neon', label: 'Neon', color: 'oklch(0.6726 0.2904 341.4084)' },
 	{ id: 'breeze', label: 'Breeze', color: 'oklch(0.7227 0.1920 149.5793)' },
-	{ id: 'amoled', label: 'AMOLED', color: 'oklch(0 0 0)' }
+	{ id: 'amoled', label: 'AMOLED', color: 'oklch(0 0 0)' },
+	{ id: 'material', label: 'Material You', color: 'oklch(0.4955 0.1305 293.7091)' }
 ];
 
 // A removed accent preset falls back to the default palette, carrying its colour over as a custom
@@ -58,6 +67,7 @@ export const FONTS: { label: string; value: string }[] = [
 	{ label: 'Montserrat', value: "'Montserrat Variable', sans-serif" },
 	{ label: 'Outfit', value: "'Outfit Variable', sans-serif" },
 	{ label: 'DM Sans', value: "'DM Sans Variable', sans-serif" },
+	{ label: 'Google Sans', value: "'Google Sans Variable', sans-serif" },
 	{ label: 'System', value: 'ui-sans-serif, system-ui, sans-serif' }
 ];
 
@@ -79,7 +89,9 @@ const APPEARANCE_KEY = 'appearance';
 const PALETTE_CLASSES = THEMES.map((t) => `theme-${t.id}`);
 /** Set on <html> while the artwork tint is live; the fill rules in layout.css hang off it. */
 const TINT_CLASS = 'art-tint';
+const MATUGEN_STYLE_ID = 'limusic-matugen';
 const ACCENT_VARS = ['--primary', '--primary-foreground', '--accent', '--accent-foreground'];
+const M3_SEED_VARS = ['--m3-seed-h', '--m3-c'];
 const CUSTOM_VARS = ['--hue', '--radius', '--font-sans', '--font-heading'];
 // Same two neutrals the preset accent themes pick between.
 const ON_DARK = 'oklch(0.985 0 0)';
@@ -96,6 +108,15 @@ export const custom = $state<Custom>({
 	fontFiles: []
 });
 
+/** Enhanced lyrics' tuning (#591), what each reset icon in its settings card puts back. */
+export const LYRICS_DEFAULTS = {
+	enhancedLyricsLineSync: false,
+	lyricsAnim: 'bounce' as LyricsAnim,
+	lyricsStyle: 'feather' as LyricsStyle,
+	lyricsAnimStrength: 100,
+	lyricsGlow: 50
+};
+
 /**
  * Looks the UI reads directly rather than through a CSS token. Same store and same reasoning as
  * the theme above (a pure UI preference, no backend round-trip), which also means a component can
@@ -104,9 +125,21 @@ export const custom = $state<Custom>({
 export const appearance = $state({
 	/** Blur the playing track's artwork behind the now-playing view. */
 	artworkBackground: true,
-	/** The redesigned now-playing view (title and album under the picture, a lit backdrop, a
-	 *  full-height queue/lyrics column). Opt-in while people get used to it; off is the original. */
-	stagePlayer: false,
+	/** Blur the cover behind a playlist's header. Sharp, a square cover stretched to the page's
+	 *  width is often too small for it and shows its pixels (#461). */
+	blurPlaylistHeader: false,
+	/** The "Now playing" pill a list floats over its rows while the playing one is off screen, in
+	 *  the queue and on a playlist (#366). Off for whoever finds it in the way. */
+	nowPlayingPill: true,
+	/** The original now-playing view, before the redesign (title and album under the picture, a
+	 *  lit backdrop, a full-height queue/lyrics column) became the default. A new key rather than
+	 *  `stagePlayer` flipped: that one was saved as `false` for everyone, so a new default would
+	 *  never have reached them. */
+	classicPlayer: false,
+	/** The new layout's line under the cover reads in its romanization instead of the original
+	 *  script. Apart from the lyrics tab's Romanized switch: that one adds a reading under each line,
+	 *  this one swaps a line that only has room for one. */
+	coverLyricRomanized: false,
 	/**
 	 * The now-playing view carries queue and lyrics itself, as tabs, and the player bar's two
 	 * buttons switch between them while it's open. Off, those buttons only ever open the floating
@@ -115,12 +148,28 @@ export const appearance = $state({
 	tabbedPlayer: true,
 	/** Starting playback opens the now-playing view. Off, it plays and leaves you where you are (#64). */
 	openPlayerOnPlay: true,
+	/** A click on empty player-bar space toggles the now-playing view, and one around the artwork
+	 *  closes it (#302). Off, only the buttons and shortcuts do, for whoever trips it by accident. */
+	emptyClickTogglesPlayer: true,
 	/** Take the accent colour from the playing track's cover, crossfading on each change. */
 	artworkAccent: false,
 	/** Theater mode's second and third columns (#297). Sticky, like every view toggle. */
 	theaterLyrics: true,
-	theaterQueue: false
+	theaterQueue: false,
+	/** Derive the whole palette from Matugen. Off by default. */
+	matugen: false,
+	/** Theater mode: a small clock in a top corner, for a screen that hides the system clock. */
+	theaterClock: false,
+	theaterClockSide: 'right' as 'left' | 'right',
+	theaterClockFormat: 'auto' as 'auto' | '12' | '24',
+	enhancedLyrics: false,
+	...LYRICS_DEFAULTS
 });
+
+export type LyricsAnim = 'bounce' | 'float' | 'wave' | 'pop' | 'slide' | 'none';
+export type LyricsStyle = 'feather' | 'accent' | 'crisp' | 'word';
+export const LYRICS_ANIMS: LyricsAnim[] = ['bounce', 'float', 'wave', 'pop', 'slide', 'none'];
+export const LYRICS_STYLES: LyricsStyle[] = ['feather', 'accent', 'crisp', 'word'];
 
 export function setAppearance(patch: Partial<typeof appearance>): void {
 	Object.assign(appearance, patch);
@@ -182,10 +231,28 @@ export function readBack(): void {
 /** Text colour for an accent fill. Also used by `ThemeMock`, which mirrors `apply` on a leaf. */
 export const onAccent = (color: string) => (isLight(color) ? ON_LIGHT : ON_DARK);
 
+export function m3Seed(color: string | null): { h: string; c: string } | null {
+	const ok = color ? hexToOklch(color) : null;
+	if (!ok) return null;
+	return {
+		h: ok.h.toFixed(1),
+		c: Math.min(1.35, Math.max(0.15, ok.c / 0.1305)).toFixed(3)
+	};
+}
+
 /** Write the accent quartet as inline vars on <html>, foreground picked for legibility on it. */
 function setAccentVars(color: string): void {
-	const fg = onAccent(color);
 	const root = document.documentElement;
+	if (theme.id === 'material') {
+		const seed = m3Seed(color);
+		if (seed) {
+			root.style.setProperty('--m3-seed-h', seed.h);
+			root.style.setProperty('--m3-c', seed.c);
+			if (custom.hue === null) root.style.setProperty('--hue', seed.h);
+		}
+		return;
+	}
+	const fg = onAccent(color);
 	root.style.setProperty('--primary', color);
 	root.style.setProperty('--primary-foreground', fg);
 	root.style.setProperty('--accent', color);
@@ -197,14 +264,19 @@ function apply(): void {
 	const root = document.documentElement;
 	// Reset first, so switching palettes (or clearing a custom override) never leaves the previous
 	// choice's inline vars or class behind.
-	[...ACCENT_VARS, ...CUSTOM_VARS, '--art-h'].forEach((v) => root.style.removeProperty(v));
+	[...ACCENT_VARS, ...M3_SEED_VARS, ...CUSTOM_VARS, '--art-h'].forEach((v) =>
+		root.style.removeProperty(v)
+	);
 	root.classList.remove(...PALETTE_CLASSES, TINT_CLASS);
 	root.classList.add(`theme-${t.id}`); // 'default' has no rule: :root/.dark are its tokens
 
-	if (custom.accent) setAccentVars(custom.accent);
+	// The Matugen palette brings its own accent (its stylesheet sets it), so the custom one steps aside.
+	if (custom.accent && !appearance.matugen) setAccentVars(custom.accent);
 	// Last, so the artwork wins while it's on and the user's own theme is back the moment it isn't.
 	if (art) setArtVars(art);
-	if (custom.hue !== null) root.style.setProperty('--hue', String(custom.hue));
+	if (custom.hue !== null && !(art && theme.id === 'material')) {
+		root.style.setProperty('--hue', String(custom.hue));
+	}
 	if (custom.radius !== null) root.style.setProperty('--radius', `${custom.radius}rem`);
 	if (custom.fontSans) root.style.setProperty('--font-sans', custom.fontSans);
 	if (custom.fontHeading) root.style.setProperty('--font-heading', custom.fontHeading);
@@ -392,6 +464,15 @@ export function setUiVisible(visible: boolean): void {
  * frozen into the cache at decode time (#137).
  */
 function setArtVars(c: { h: number; hex: string }): void {
+	if (theme.id === 'material') {
+		const seed = m3Seed(c.hex);
+		if (seed) {
+			document.documentElement.style.setProperty('--m3-seed-h', seed.h);
+			document.documentElement.style.setProperty('--m3-c', seed.c);
+			document.documentElement.style.setProperty('--hue', seed.h);
+		}
+		return;
+	}
 	// AMOLED stays black in light mode (layout.css), so the tint and the accent band stay dark too.
 	setAccentVars(toAccent(c.hex, darkMode || theme.id === 'amoled'));
 	document.documentElement.style.setProperty('--art-h', c.h.toFixed(1));
@@ -400,8 +481,8 @@ function setArtVars(c: { h: number; hex: string }): void {
 
 /**
  * Point the theme at a cover URL. `null`/undefined (setting off, nothing playing) drops the layer
- * immediately; an unreadable or colourless image leaves the current colours alone rather than
- * flashing to grey.
+ * immediately. An unreadable or colourless cover drops it too once decoded: keeping the last
+ * track's colour paints this one in a cover it doesn't have (#522).
  */
 export function applyArtworkAccent(url: string | undefined | null): void {
 	wanted = url ?? '';
@@ -413,11 +494,11 @@ export function applyArtworkAccent(url: string | undefined | null): void {
 		return;
 	}
 	artworkAccent(url).then((hex) => {
-		if (!hex || wanted !== url) return; // colourless cover, or a faster track change already won
-		if (art?.hex === hex) return; // same colour (a repeat, or the queue moved under us)
-		const hsv = hexToHsv(hex);
-		if (!hsv) return;
-		art = { h: hsv.h, hex };
+		if (wanted !== url) return; // a faster track change already won
+		const hsv = hex ? hexToHsv(hex) : null;
+		const next = hsv ? { h: hsv.h, hex: hex! } : null;
+		if (art?.hex === next?.hex) return; // same colour (a repeat, the queue moved), or theme already
+		art = next;
 		restyle(); // through the normal path, so `effective` and the pickers agree
 	});
 }
@@ -431,6 +512,46 @@ export function refreshArtworkAccent(dark: boolean): void {
 /** Decode a cover the user is about to hear, so its colour is ready the instant the track flips. */
 export function prewarmArtworkAccent(url: string | undefined | null): void {
 	if (url) warmAccent(url);
+}
+
+function applyMatugenTheme(css: string | null): void {
+	let style = document.getElementById(MATUGEN_STYLE_ID) as HTMLStyleElement | null;
+	if (!css) {
+		style?.remove();
+		document.documentElement.classList.remove('matugen-theme');
+		apply();
+		return;
+	}
+	if (!style) {
+		style = document.createElement('style');
+		style.id = MATUGEN_STYLE_ID;
+		document.head.prepend(style);
+	}
+	style.textContent = css;
+	document.documentElement.classList.add('matugen-theme');
+	apply();
+}
+
+let matugenUnlisten: (() => void) | null = null;
+let matugenQueue = Promise.resolve();
+
+/** Start or stop following the Matugen file to match the switch. Queued, so a fast off/on can't interleave. */
+export function syncMatugen(): Promise<void> {
+	matugenQueue = matugenQueue
+		.then(async () => {
+			if (appearance.matugen && !matugenUnlisten) {
+				matugenUnlisten = await onMatugenThemeChanged(applyMatugenTheme);
+				await startMatugenWatcher();
+				applyMatugenTheme(await getMatugenTheme());
+			} else if (!appearance.matugen && matugenUnlisten) {
+				matugenUnlisten();
+				matugenUnlisten = null;
+				await stopMatugenWatcher();
+				applyMatugenTheme(null);
+			}
+		})
+		.catch((e) => logUi('error', `Matugen: ${String(e)}`));
+	return matugenQueue;
 }
 
 /** Apply the stored theme + customization on startup (defaults to the default palette, no overrides). */
@@ -465,19 +586,41 @@ export function initTheme(): void {
 		const saved = JSON.parse(localStorage.getItem(APPEARANCE_KEY) ?? '{}');
 		for (const k of [
 			'artworkBackground',
-			'stagePlayer',
+			'blurPlaylistHeader',
+			'nowPlayingPill',
+			'classicPlayer',
+			'coverLyricRomanized',
 			'tabbedPlayer',
 			'openPlayerOnPlay',
+			'emptyClickTogglesPlayer',
 			'artworkAccent',
 			'theaterLyrics',
-			'theaterQueue'
+			'theaterQueue',
+			'matugen',
+			'theaterClock',
+			'enhancedLyrics',
+			'enhancedLyricsLineSync'
 		] as const) {
 			if (typeof saved?.[k] === 'boolean') appearance[k] = saved[k];
+		}
+		// Not booleans, so they are not in the list above: one value each, checked on its own.
+		if (saved?.theaterClockSide === 'left' || saved?.theaterClockSide === 'right')
+			appearance.theaterClockSide = saved.theaterClockSide;
+		if (['auto', '12', '24'].includes(saved?.theaterClockFormat))
+			appearance.theaterClockFormat = saved.theaterClockFormat;
+		if (LYRICS_ANIMS.includes(saved?.lyricsAnim)) appearance.lyricsAnim = saved.lyricsAnim;
+		if (LYRICS_STYLES.includes(saved?.lyricsStyle)) appearance.lyricsStyle = saved.lyricsStyle;
+		if (typeof saved?.lyricsAnimStrength === 'number') {
+			appearance.lyricsAnimStrength = Math.min(200, Math.max(25, saved.lyricsAnimStrength));
+		}
+		if (typeof saved?.lyricsGlow === 'number') {
+			appearance.lyricsGlow = Math.min(100, Math.max(0, saved.lyricsGlow));
 		}
 	} catch {
 		// unparseable — keep the defaults
 	}
 	apply();
+	if (appearance.matugen) syncMatugen();
 	// Async (each file needs its URL granted first), so the app paints in the fallback font for a
 	// frame or two before a loaded font swaps in.
 	if (custom.fontFiles.length) registerFontFiles();

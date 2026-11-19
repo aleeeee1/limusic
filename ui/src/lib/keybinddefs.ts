@@ -24,6 +24,7 @@ export const KEYBIND_ACTIONS: KeybindActionDef[] = [
 	{ id: 'prev', titleKey: 'dialogs.shortcuts.previous_song', group: 'playback', defaults: [`${PRIMARY}+D`] },
 	{ id: 'shuffle', titleKey: 'dialogs.shortcuts.shuffle_queue', group: 'playback', defaults: [`${PRIMARY}+S`] },
 	{ id: 'repeat', titleKey: 'dialogs.shortcuts.toggle_repeat', group: 'playback', defaults: [`${PRIMARY}+R`] },
+	{ id: 'like', titleKey: 'dialogs.shortcuts.like_song', group: 'playback', defaults: [`${PRIMARY}+L`] },
 	// macOS keeps ⌘M for minimize, so mute asks for Shift on top there.
 	{ id: 'mute', titleKey: 'dialogs.shortcuts.mute_unmute', group: 'playback', defaults: [IS_MAC ? `${PRIMARY}+Shift+M` : `${PRIMARY}+M`] },
 	{ id: 'volume_up', titleKey: 'dialogs.shortcuts.volume_up', group: 'playback', defaults: [`${PRIMARY}+.`] },

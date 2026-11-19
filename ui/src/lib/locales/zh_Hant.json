@@ -20,7 +20,8 @@
 		"playlist_partial": "已將 {added} 首新增至「{playlist}」；其中 {duplicates} 首已存在；{remaining} 首未確認。{error}",
 		"remove": "從此播放清單中移除",
 		"remove_confirm": "確定要移除這 {count} 首項目？",
-		"playlists_partial": "已新增至 {total} 個播放清單中的 {done} 個。{error}"
+		"playlists_partial": "已新增至 {total} 個播放清單中的 {done} 個。{error}",
+		"play_on_repeat": "只對這些循環播放"
 	},
 	"common": {
 		"loading": "載入中…",
@@ -87,7 +88,8 @@
 		"play_all": "全部播放",
 		"top_result": "最佳結果",
 		"all_results_for": "所有符合「{query}」的結果",
-		"videos": "影片"
+		"videos": "影片",
+		"restore": "恢復"
 	},
 	"nav": {
 		"home": "首頁",
@@ -110,7 +112,8 @@
 		"remove_account_desc": "僅會將 {name} 從此清單中移除。您的 Google 帳戶不受影響，日後隨時可再次登入。",
 		"saved_accounts_hint": "選擇已儲存的帳戶即可快速切換。",
 		"history": "歷史記錄",
-		"no_channels": "YouTube 未傳回任何可選取的頻道。"
+		"no_channels": "YouTube 未傳回任何可選取的頻道。",
+		"stats": "統計"
 	},
 	"player": {
 		"play": "播放",
@@ -126,7 +129,6 @@
 		"volume": "音量",
 		"queue": "待播清單",
 		"lyrics": "歌詞",
-		"mini_player": "迷你播放器",
 		"theater_mode": "劇院模式",
 		"playing_from": "播放來源",
 		"exit_theater": "結束劇院模式",
@@ -171,12 +173,34 @@
 		"queue_ends": "此曲目為待播清單的最後一首。",
 		"autoplay": "自動播放",
 		"songs_left": "待播清單還剩 {count} 首",
-		"edit_scrobble": "編輯紀錄 (Scrobble)"
+		"edit_scrobble": "編輯紀錄 (Scrobble)",
+		"comments": "留言",
+		"song": "歌曲",
+		"video": "影片",
+		"up_next": "接下來",
+		"fullscreen_video": "全螢幕",
+		"exit_fullscreen_video": "離開全螢幕",
+		"scroll_to_end": "捲動到底部",
+		"skip_back": "倒退 {seconds} 秒",
+		"skip_forward": "快轉 {seconds} 秒",
+		"speed": "播放速度",
+		"link_playing_on": "正在播放 {name}",
+		"link_paused_on": "上次播放 {name}",
+		"link_continue_here": "從此處繼續",
+		"devices": "裝置",
+		"devices_title": "播放",
+		"devices_hint": "選擇在哪裡播放。",
+		"devices_settings": "裝置設定",
+		"this_computer": "此裝置",
+		"devices_this_computer_hint": "在此裝置上播放",
+		"devices_playing_here": "正在此裝置播放",
+		"devices_paused": "已暫停",
+		"live": "Live"
 	},
 	"home": {
 		"good_morning": "讓今天從旋律開始",
-		"good_afternoon": "午後有光，也有音樂",
-		"good_evening": "夜色漸深，音樂正好",
+		"good_afternoon": "午後有光, 也有音樂",
+		"good_evening": "夜色漸深, 音樂正好",
 		"good_night": "讓一首歌陪你入夜",
 		"forgotten_favourites": "重溫舊愛",
 		"familiar_artists": "熟悉的演出者",
@@ -189,7 +213,7 @@
 		"show_section": "在首頁顯示「{title}」",
 		"feed_empty": "首頁目前沒有任何推薦內容。",
 		"signed_out_hint": "登入後，首頁將會根據您的聆聽喜好提供專屬合輯與推薦清單。",
-		"add_to_end": "新增至結尾",
+		"add_to_end": "移至最後",
 		"edit_home_desc": "您所做的變更會即時反映在首頁上。",
 		"look": "介面外觀",
 		"card_size": "卡片大小",
@@ -208,10 +232,22 @@
 		"sections_hint": "拖曳區塊或使用方向鍵來調整排列順序。已隱藏的區塊會保留其原本位置。",
 		"move_section": "移動「{title}」",
 		"moved_section": "「{title}」已移動至第 {position} 個（共 {total} 個）",
-		"new_section": "新版塊",
-		"show_new": "顯示新版塊",
-		"show_new_desc": "YouTube 會隨時間新增或更名分類區塊。關閉時，新區塊預設為隱藏，直到您手動開啟。",
-		"all_hidden": "首頁上的所有區塊皆已關閉。"
+		"all_hidden": "首頁上的所有區塊皆已關閉。",
+		"kinds": {
+			"listen_again": "再聽一次",
+			"quick_picks": "歌曲快選",
+			"from_library": "您的收藏庫",
+			"community": "社群播放清單",
+			"fresh_finds": "新歌舊愛，一次滿足",
+			"albums_for_you": "為您推薦的專輯",
+			"trending": "為您推薦的歌曲",
+			"featured_playlists": "為您精選的播放列表",
+			"new_releases": "最新發布",
+			"mixed_for_you": "為您精選",
+			"daily_discover": "每日發現",
+			"music_videos": "為您推薦的 MV"
+		},
+		"live_now": "正在此裝置播放"
 	},
 	"history": {
 		"title": "歷史記錄",
@@ -227,7 +263,8 @@
 		"subscribed": "已訂閱",
 		"subscribe_to": "訂閱 {name}",
 		"unsubscribe_from": "取消訂閱 {name}",
-		"top_songs": "熱門歌曲"
+		"top_songs": "熱門歌曲",
+		"appears_on": "出現於"
 	},
 	"library": {
 		"title": "收藏庫",
@@ -241,7 +278,7 @@
 		"matching_songs_so_far": "目前找到 {count} 首相符",
 		"sync_idle_tooltip": "將這部裝置儲存的 {count} 首歌曲同步新增至您的 YouTube Music 收藏庫",
 		"save_to_library": "儲存至收藏庫",
-		"in_library": "已收藏",
+		"in_library": "使用中的帳號",
 		"no_matching_tracks": "找不到符合「{query}」的曲目。",
 		"empty_album": "此專輯中沒有任何曲目。",
 		"play_count": "已播放 {count} 次",
@@ -286,7 +323,16 @@
 		"saved_in_many": "已儲存於 {count} 個播放清單",
 		"saved_in_more": "以及其他 {count} 個",
 		"subscriptions_tab": "訂閱內容",
-		"no_subscriptions": "尚未訂閱任何演出者，請在他們的個人頁面訂閱，以支持他們的創作。"
+		"no_subscriptions": "尚未訂閱任何演出者，請在他們的個人頁面訂閱，以支持他們的創作。",
+		"suggestions": "建議",
+		"suggestions_hint": "根據這個播放列表的內容",
+		"suggestions_failed": "無法載入建議。",
+		"suggestion_add": "將 {title} 添加到此播放清單",
+		"suggestion_added": "已加入",
+		"saved_in_count": "{count} 個播放清單",
+		"suggestions_hide": "隱藏",
+		"suggestions_show": "顯示",
+		"suggestions_hidden": "隱藏建議。在播放清單的尾端，再重新顯示建議。"
 	},
 	"local": {
 		"scanning": "正在掃描資料夾…",
@@ -319,8 +365,10 @@
 			"about_hint": "版本資訊、軟體更新與更新日誌。",
 			"hotkeys": "全域快捷鍵",
 			"hotkeys_hint": "在系統任何角落均可控制播放的鍵盤快捷鍵。",
-			"scrobbling": "正在紀錄",
-			"scrobbling_hint": "Last.fm 紀錄的資訊，以及何時紀錄播放。"
+			"scrobbling": "紀錄",
+			"scrobbling_hint": "Last.fm 紀錄的資訊，以及何時紀錄播放。",
+			"devices": "裝置",
+			"devices_hint": "透過手機控制 Limusic Desktop。"
 		},
 		"sections": {
 			"language": "語言",
@@ -343,7 +391,9 @@
 			"discord_status": "狀態文字",
 			"discord_card": "資訊卡",
 			"discord_links": "超連結設定",
-			"discord_buttons": "操作按鈕"
+			"discord_buttons": "操作按鈕",
+			"colors": "主題色",
+			"interface": "介面"
 		},
 		"general": {
 			"language": "介面語言",
@@ -369,15 +419,17 @@
 			"track_notifications": "換曲通知",
 			"track_notifications_hint": "當 Limusic 在背景執行且開始播放新歌曲時，顯示系統通知。",
 			"start_minimized": "開機啟動時最小化至系統匣",
-			"start_minimized_hint": "隨系統開機啟動時自動保持在系統匣背景中；手動開啟應用程式時則正常顯示視窗。"
+			"start_minimized_hint": "隨系統開機啟動時自動保持在系統匣背景中；手動開啟應用程式時則正常顯示視窗。",
+			"track_notifications_focused": "使用 Limusic 時也顯示通知",
+			"track_notifications_focused_hint": "當 Limusic 是目前使用中的視窗時，如果下一首歌曲自動開始播放，也會顯示通知。手動選擇播放的歌曲則不會顯示通知。",
+			"play_on_start": "開啟時，恢復上一次的播放",
+			"play_on_start_hint": "當 Limusic 開啟時，從上次播放歌曲繼續。"
 		},
 		"themes": {
 			"interface_font": "介面字型",
 			"load_font_file": "從本機檔案載入字型",
-			"custom_colors": "自訂色彩",
 			"primary_color": "主要強調色",
 			"background_color": "背景顏色",
-			"reset_theme": "重設為預設主題",
 			"your_fonts": "已載入的字型",
 			"custom_font": "自訂字型…",
 			"font_placeholder": "本機已安裝的字型名稱，例如：Inter、PingFang TC",
@@ -411,7 +463,49 @@
 			"app_icon_hint": "可選取自訂 PNG 取代系統匣、本視窗與 Alt-Tab 視窗切換中的圖示。捷徑與檔案總管中仍會保留原圖示。",
 			"app_icon_pick": "選取…",
 			"app_icon_dialog": "選取應用程式圖示",
-			"app_icon_filter": "PNG 圖片"
+			"app_icon_filter": "PNG 圖片",
+			"classic_player": "經典播放器版面",
+			"classic_player_hint": "還原原始播放器介面：封面圖片置於模糊的封面背景上，歌曲資訊則保留在播放器控制列中。關閉此選項後，將改用新版版面：在封面下方顯示歌曲名稱、演出者與專輯，並以封面的色彩營造整體視覺效果。",
+			"blur_playlist_header": "模糊播放清單標題背景",
+			"blur_playlist_header_hint": "在播放清單標題後方顯示模糊的封面圖片，讓延展至全寬時出現像素化的封面看起來更加平滑。",
+			"matugen": "動態配色",
+			"matugen_hint": "從 Matugen、Wallust 或 Pywal 提供的調色板中選擇顏色，包含強調色。需要先設定 Limusic 的主題模板。",
+			"mode": "亮色或暗色",
+			"mode_hint": "該系統會根據您的電腦設置自動調整。",
+			"mode_light": "亮色",
+			"mode_dark": "暗色",
+			"mode_system": "系統",
+			"accent_hint": "按鈕、進度條，以及任何被選中的元素。",
+			"accent_theme": "主題的獨特性",
+			"accent_artwork_note": "在播放歌曲時，主要強調色來自歌曲的封面。關閉「Matugen 動態配色」功能，即可看到這一效果。",
+			"preview": "預覽",
+			"preview_hint": "當您拖動時，滑塊和顏色選擇器會顯示，應用程序會跟隨您的操作。",
+			"now_playing_pill": "現正播放",
+			"now_playing_pill_hint": "在播放清單或待播清單中，當歌曲被滾動到屏幕外時，顯示一個返回按鈕，以便輕鬆返回到之前的歌曲。",
+			"empty_click_player": "點擊空白區域以切換播放器展開",
+			"empty_click_player_hint": "啟用時：點擊播放器界面上的空白區域，可以展開或關閉播放器；停用時：只能使用方向鍵、Esc 鍵和鍵盤快捷鍵控制。",
+			"enhanced_lyrics": "強化歌詞",
+			"enhanced_lyrics_hint": "歌詞會隨著演唱逐字呈現動態與發光效果。",
+			"enhanced_lyrics_line_sync": "同時顯示同步歌詞",
+			"enhanced_lyrics_line_sync_hint": "估算歌詞的播放時間，僅對有單行同步的歌詞生效。關閉時，歌詞將逐行播放。",
+			"lyrics_anim": "字詞動畫",
+			"lyrics_anim_hint": "調整歌詞逐字動畫的呈現方式。",
+			"lyrics_anim_bounce": "彈跳",
+			"lyrics_anim_float": "漂浮",
+			"lyrics_anim_wave": "波浪",
+			"lyrics_anim_pop": "跳動",
+			"lyrics_anim_slide": "滑動",
+			"lyrics_anim_none": "無",
+			"lyrics_style": "高亮特效",
+			"lyrics_style_hint": "調整歌詞沿著文字逐步填滿與高亮的方式。",
+			"lyrics_style_feather": "平滑掃描",
+			"lyrics_style_accent": "強調色填充",
+			"lyrics_style_crisp": "卡拉 OK",
+			"lyrics_style_word": "整詞高亮",
+			"lyrics_anim_strength": "動畫強度",
+			"lyrics_anim_strength_hint": "調整歌詞逐字動畫的移動幅度。",
+			"lyrics_glow": "高亮特效強度",
+			"lyrics_glow_hint": "調整演唱中字詞的柔和發光強度。"
 		},
 		"playback": {
 			"audio_quality": "音訊品質",
@@ -428,8 +522,8 @@
 			"play_history_hint": "記錄您最近播放過的曲目，以便產生個人化音樂推薦。",
 			"music_videos": "啟用 MV 影片播放",
 			"music_videos_hint": "若有可用的 MV 影片串流，將優先播放影片而非純音訊。",
-			"hide_videos": "在搜尋結果中隱藏影片",
-			"hide_videos_hint": "搜尋結果僅顯示純音訊曲目與官方發行的專輯內容。",
+			"hide_videos": "在搜尋結果中隱藏影片與電台",
+			"hide_videos_hint": "搜尋結果、首頁、電台與演出者頁面以及自動播放僅顯示純音訊曲目與官方發行的專輯內容。播放清單與專輯不受此影響，電台也仍會播放影片。",
 			"blocked_artists": "已封鎖的演出者",
 			"blocked_artists_hint": "被封鎖的演出者不會出現在電台、自動播放及推薦探索中。但您主動打開的專輯或播放清單仍會正常播放其中的曲目。",
 			"blocked_artists_empty": "目前尚未封鎖任何演出者。您可以在曲目的 ⋯ 選單中選擇「封鎖演出者」。",
@@ -462,11 +556,13 @@
 			"ambient_light_gpu_check": "查詢您的顯示卡跑分",
 			"ambient_light": "流光溢彩氛圍燈",
 			"shuffle_whole_queue": "隨機播放整個待播清單",
-			"shuffle_whole_queue_hint": "隨機播放時，將透過「加入待播清單」手動加入的歌曲與播放清單混合；關閉時則會排在播放清單之後播放。「接著播放」一律享有最高優先級。"
+			"shuffle_whole_queue_hint": "隨機播放時，將透過「加入待播清單」手動加入的歌曲與播放清單混合；關閉時則會排在播放清單之後播放。「接著播放」一律享有最高優先級。",
+			"videos_first": "優先播放影片",
+			"videos_first_hint": "專輯或播放清單中的歌曲如果帶有 MV，則默認以影片形式播放。如果要以歌曲形式播放，請使用播放器的「歌曲/影片」功能切換。",
+			"lyrics_prefer_words": "優先使用逐字歌詞",
+			"lyrics_prefer_words_hint": "無論歌詞來源為何，逐字歌詞的優先順序都高於較高順位來源提供的逐行歌詞。歌曲首次播放時，歌詞可能需要多花幾秒才會顯示。"
 		},
 		"data": {
-			"clear_cache": "清除圖片與串流快取",
-			"clear_cache_hint": "清除已快取的縮圖與音訊資料片段以釋放磁碟空間。",
 			"clear_cache_button": "立即清除快取"
 		},
 		"about": {
@@ -606,12 +702,12 @@
 			"now_playing_hint": "當歌曲開始播放時，立即更新 Last.fm，這樣您的個人資料就能顯示正在播放的歌曲。",
 			"section_timing": "何時紀錄播放",
 			"percent_value": "{n}% 後",
-			"percent": "在",
+			"percent": "依照百分比",
 			"percent_hint": "需要播放多少歌曲才紀錄？Last.fm 預設規則是半首。如果在歌曲剛開始播放就跳過，則不進行計算。",
 			"minutes_value": "{n} 分鐘後",
-			"minutes": "或",
+			"minutes": "依照固定時長",
 			"minutes_off": "關閉",
-			"minutes_hint": "當歌曲播放次數達到一定程度時，即使在設定歌曲播放進度達成以前，也能記錄下來。Last.fm 使用 4 分鐘的播放時間。30 秒以下的歌曲無法記錄。",
+			"minutes_hint": "當歌曲的播放時長達到設定值時，即使未達到設定的歌曲播放百分比進度，也能夠被記錄下來。Last.fm 使用 4 分鐘的播放時間。30 秒以下的歌曲無法記錄。",
 			"section_metadata": "發送的內容",
 			"split_titles": "讀取影片標題中的演出者",
 			"split_titles_hint": "如果標題中包含演出者，例如「演出者 - 歌曲」。對於這些影片，將其標記為該演出者和歌曲。這僅適用於影片，不適用於歌曲。",
@@ -652,7 +748,7 @@
 			"applied_edit": "您套用的編輯",
 			"applied_split": "標題拆分",
 			"applied_rule": "已套用規則：{n}",
-			"status_disconnected": "由於 Last.fm 沒有連接，因此沒有發送任何資訊。",
+			"status_disconnected": "由於找不到任何紀錄服務，因此沒有發送任何資訊。",
 			"status_paused": "紀錄已暫停。",
 			"status_skip_edit": "您的規則不會在此曲目上套用。",
 			"status_incomplete": "沒有任何資訊送出：因為缺失標題或演出者。",
@@ -661,7 +757,48 @@
 			"status_done": "在 {time} 已完成紀錄。",
 			"preset_explicit": "刪除標題中的 (Explicit) 與 (Clean) 字段",
 			"preset_topic": "刪除演出者中的 \" - Topic\" 字段",
-			"preset_vevo": "刪除演出者中的 \"VEVO\" 字段"
+			"preset_vevo": "刪除演出者中的 \"VEVO\" 字段",
+			"stat_listens": "收聽",
+			"lb_open_profile": "開啟您的 ListenBrainz 個人檔案",
+			"lb_disconnected": "連結到 ListenBrainz 帳號並傳送您的收聽紀錄。",
+			"lb_validating": "檢查 ListenBrainz 的授權碼。",
+			"lb_token_hint": "請貼上您的授權碼。您可以在 ListenBrainz 的設定頁面中找到它。",
+			"lb_open_settings": "打開 ListenBrainz 設定",
+			"lb_token_placeholder": "ListenBrainz 授權碼",
+			"lb_problem_email": "檢查您的 MetaBrainz 電子郵件，讓 ListenBrainz 能夠接收您的收聽紀錄。",
+			"lb_problem_rejected": "ListenBrainz 不再接受此授權碼。請提供新的授權碼並重新連接。",
+			"lb_verify_email": "驗證電子郵件"
+		},
+		"devices": {
+			"title": "音樂不中斷",
+			"subtitle": "您的裝置可以互相控制，並且音樂可以在它們之間流動。",
+			"intro": "將您的 Limusic 連接到手機：每個裝置都能顯示和控制其他裝置的播放內容，並且音樂會依照您選擇的裝置播放。",
+			"link_phone": "連接到手機",
+			"link_another": "連接另一台手機",
+			"step_open": "在您的手機上打開 Limusic：設置 > 整合功能 > 裝置",
+			"step_type": "輸入此代碼",
+			"custom_server": "在此伺服器上輸入 {invite}",
+			"expires_in": "將在 {time} 過期",
+			"expired": "此代碼已經過期。",
+			"new_code": "創建代碼",
+			"unsupported": "此伺服器目前不支援連接功能。",
+			"try_again": "請重試",
+			"connecting": "連接中…",
+			"this_computer": "此裝置",
+			"linked": "已連接",
+			"online": "線上",
+			"offline": "離線",
+			"playing": "播放中",
+			"paused": "已暫停",
+			"playing_here": "在此處播放",
+			"ready": "已就緒",
+			"remote_for": "正在控制 {name}",
+			"play_here": "在此處播放",
+			"play_on_phone": "在手機上播放",
+			"more": "更多",
+			"unlink": "中斷連接",
+			"unlink_title": "中斷 {name} 的連接？",
+			"unlink_desc": "您已經無法再控制此桌面應用程式。您可以使用創建新代碼並重新連接。"
 		}
 	},
 	"dialogs": {
@@ -688,7 +825,10 @@
 			"copy_link": "複製連結",
 			"public_link_on": "任何擁有此連結的人皆可直接開啟。",
 			"public_link_off": "開啟後即可讓獲得此連結的所有人正常檢視。",
-			"private_note": "此播放清單為私人清單。其他人開啟此連結將會顯示錯誤頁面。"
+			"private_note": "此播放清單為私人清單。其他人開啟此連結將會顯示錯誤頁面。",
+			"start_at": "開始於",
+			"start_invalid": "輸入時間，例如「1:23」。",
+			"start_too_long": "這已經過了歌曲的結尾（{length}）。連結不會包含開始時間。"
 		},
 		"shortcuts": {
 			"title": "鍵盤快速鍵",
@@ -709,13 +849,76 @@
 			"zoom_in": "放大介面",
 			"zoom_out": "縮小介面",
 			"reset_zoom": "重設縮放比例",
-			"show_this_list": "顯示此快速鍵清單"
+			"show_this_list": "顯示此快速鍵清單",
+			"quit_app": "關閉 Limusic"
 		},
 		"tempo_pitch": {
-			"title": "播放速度與音高調整",
+			"title": "播放速度、音高調整與混響",
 			"desc": "此設定將套用於播放的所有歌曲，直到您手動重設或重新啟動應用程式。",
 			"tempo": "播放速度 (Tempo)",
-			"pitch": "音高 (Pitch / Key)"
+			"pitch": "音高 (Pitch / Key)",
+			"presets": "風格設置",
+			"builtin": {
+				"original": "預設",
+				"slowed": "降速混響",
+				"nightcore": "Nightcore",
+				"practice": "練習模式",
+				"hall": "音樂廳效果"
+			},
+			"builtin_hints": {
+				"original": "歌曲原版",
+				"slowed": "速度更慢、音高更低，並營造寬廣的空間感",
+				"nightcore": "速度更快、音高更高，並加入些許混響",
+				"practice": "放慢播放速度，但保持原本的音高",
+				"hall": "營造現場演奏般的聽覺體驗"
+			},
+			"preset_save": "儲存風格設置",
+			"preset_save_hint": "保存當前的設定",
+			"preset_save_none": "請先修改以下內容",
+			"preset_name": "風格名稱",
+			"preset_replace": "覆蓋",
+			"preset_delete": "刪除 {name}",
+			"preset_duplicate": "已經有同名的設置。儲存以覆蓋原先的設置。",
+			"preset_save_error": "無法儲存設置。請再試一次，您的設置沒有改變。",
+			"preset_load_error": "無法讀取您儲存的設置。為了保護您的設置，已禁用儲存功能。",
+			"preset_room_hint": "在收聽房間中，設置僅影響音高和混響。播放速度不受影響。",
+			"adjust": "調整",
+			"normal": "正常",
+			"pitch_short": "音高 {n}",
+			"slower": "較慢",
+			"faster": "較快",
+			"lower": "較低",
+			"higher": "較高",
+			"song_length": "現正播放的歌曲剩下：{time}",
+			"tempo_room_locked": "為了同步每個人的播放進度，播放速度設置已鎖定。",
+			"reverb": "混響",
+			"reverb_hint": "營造出聲音在室內播放的空間感。",
+			"reverb_room": "房間",
+			"reverb_types": {
+				"small_room": "小房間",
+				"medium_room": "中型房間",
+				"large_room": "大房間",
+				"medium_hall": "中型音樂廳",
+				"large_hall": "大型音樂廳",
+				"plate": "板式混響"
+			},
+			"reverb_amount": "混響量",
+			"reverb_fine_tune": "更多混響設定",
+			"reverb_controls": {
+				"dry": "原曲音量",
+				"decay": "混響衰減時間",
+				"preDelay": "預延遲",
+				"damping": "明亮度",
+				"reflections": "早期反射"
+			},
+			"reverb_control_hints": {
+				"dry": "調整混響效果下原曲本身的音量。",
+				"decay": "調整每個聲音的混響持續時間。",
+				"preDelay": "設定混響開始前的短暫延遲。延遲時間越長，越能營造出大空間的聽覺體驗。",
+				"damping": "降低明亮度，會讓混響聽起來更暗沉。",
+				"reflections": "調整最初由周圍牆面反射回來的聲音強度。"
+			},
+			"reset_all": "重設所有"
 		},
 		"link": {
 			"title": "開啟連結",
@@ -794,7 +997,9 @@
 		"lastfm_connecting": "正在連線至 Last.fm — 點擊可取消",
 		"lastfm_scrobble_to": "記錄 (Scrobble) 至 Last.fm",
 		"disconnect": "解除連線",
-		"lastfm_settings": "紀錄 (Scrobbling) 設定"
+		"lastfm_settings": "紀錄 (Scrobbling) 設定",
+		"listenbrainz_connected_as": "以 {user} 的身份發送收聽紀錄",
+		"listenbrainz_disconnected": "ListenBrainz 已中斷連接"
 	},
 	"a11y": {
 		"close": "關閉",
@@ -838,7 +1043,9 @@
 		"expand_sidebar": "展開側邊欄",
 		"collapse_sidebar": "收合側邊欄",
 		"show_artwork": "顯示專輯封面",
-		"show_video": "顯示影片畫面"
+		"show_video": "顯示影片畫面",
+		"close_comments": "關閉留言",
+		"share_start_time": "開始時間"
 	},
 	"lyrics": {
 		"title": "歌詞",
@@ -885,11 +1092,16 @@
 			"lyricsplus": "Apple Music 歌詞，支援高精準度逐字滾動與 Apple 官方羅馬拼音。",
 			"lrclib": "開放原始碼同步歌詞庫，覆蓋全球音樂範圍最廣。",
 			"youtube": "YouTube Music 官方授權的歌詞來源。",
-			"simpmusic": "由社群貢獻的精準歌詞，精確匹配 YouTube 影片版本（包含開頭片頭）。",
 			"netease": "網易雲音樂曲庫，擁有極為豐富的華語音樂目錄與優質中文翻譯。",
 			"qq": "QQ 音樂曲庫，在華語流行樂 (Mandopop) 與粵語流行樂 (Cantopop) 上極為強大。",
-			"kugou": "酷狗音樂曲庫，適合尋找各類小眾與稀有冷門歌曲。"
-		}
+			"kugou": "酷狗音樂曲庫，適合尋找各類小眾與稀有冷門歌曲。",
+			"unison": "Better Lyrics 社區的歌詞，大部分是逐字匹配，與影片同步。"
+		},
+		"text_size": "字體大小",
+		"text_size_hint": "讓歌詞文字放大或縮小",
+		"text_size_larger": "放大",
+		"text_size_smaller": "縮小",
+		"unison_rate": "對 Unison 的歌詞進行評分"
 	},
 	"queue": {
 		"title": "待播清單"
@@ -971,7 +1183,16 @@
 		"could_not_add": "無法新增此項目 — 請嘗試直接開啟",
 		"added_to_playlists": "已新增至 {count} 個播放清單",
 		"added_to_playlists_dupes": "已新增至 {count} 個播放清單（已略過 {dupes} 個重複項）",
-		"already_in_selected": "所有內容皆已存在於所選取的播放清單中"
+		"already_in_selected": "所有內容皆已存在於所選取的播放清單中",
+		"could_not_load_comments": "無法載入留言",
+		"comment_action_rejected": "由於 YouTube 不接受此請求，因此您的投票沒有改變。",
+		"comment_action_failed": "無法更新您的投票。請再試一次。",
+		"comment_write_rejected": "由於 YouTube 不接受此請求，因此您的內容沒有改變。",
+		"comment_write_failed": "由於無法傳送，因此您的內容沒有改變。",
+		"comment_write_unconfirmed": "無法確認您的留言是否已發佈。請在重新發送前確認。",
+		"comment_posted": "已發佈。下次留言載入後將會顯示。",
+		"comment_delete_failed": "無法刪除。請檢查您的連接並再試一次。",
+		"comment_gone": "這條留言已經不存在了。"
 	},
 	"errors": {
 		"unreachable": "無法連線至 YouTube Music，請檢查您的網際網路連線。",
@@ -1100,6 +1321,125 @@
 			"gone": "該匯入程序已關閉。",
 			"not_found": "在 YouTube Music 上找不到此項目。",
 			"cooldown": "YouTube Music 要求 Limusic 降低請求頻率，因此匯入已暫停至 {time}。目前已找到的內容皆已妥善保存。"
-		}
+		},
+		"paste_link_hint": "僅在 YouTube 上作為視頻？請在此貼上連結。"
+	},
+	"stats": {
+		"title": "收聽統計",
+		"ranges": {
+			"week": "週",
+			"month": "月",
+			"year": "年",
+			"all": "全部"
+		},
+		"listened": {
+			"week": "過去一週",
+			"month": "過去一個月",
+			"year": "過去一年",
+			"all": "自 {date} 開始收聽"
+		},
+		"compared": {
+			"week": "與前一週相比",
+			"month": "與前一個月相比",
+			"year": "與前一年相比"
+		},
+		"plays": "播放數",
+		"new_songs": "{count} 首新歌",
+		"streak": "連續天數",
+		"best_streak": "最佳: {count}",
+		"activity": "收聽活動",
+		"daily_average": "每日平均",
+		"monthly_average": "每月平均",
+		"busiest_day": "最活躍的一天",
+		"busiest_month": "最活躍的月份",
+		"busiest_weekday": "一週當中最活躍的一天",
+		"busiest_hour": "最活躍的時間",
+		"top_songs": "最常聽的歌曲",
+		"top_artists": "最常聽的演出者",
+		"top_albums": "最常聽的專輯",
+		"share": "在您的收聽中佔了 {percent}",
+		"when": "收聽時段",
+		"dayparts": {
+			"morning": "早上",
+			"afternoon": "午後",
+			"evening": "夜間",
+			"night": "深夜"
+		},
+		"persona": {
+			"morning": "早鳥",
+			"afternoon": "午後聆聽者",
+			"evening": "夜間聆聽者",
+			"night": "夜貓子"
+		},
+		"persona_hint": "您主要是在 {from} 和 {to} 之間收聽。",
+		"less": "少",
+		"more": "多",
+		"nothing_in_range": "這段時間內沒有收聽紀錄。",
+		"empty_title": "您的紀錄從這裡開始",
+		"empty": "播放幾首歌曲，該頁面會記錄您聽到的歌曲、時間以及播放時長。",
+		"on_device": "僅在本機上的 Limusic 紀錄。將不會送出任何資訊。",
+		"clear": "清除收聽紀錄",
+		"clear_title": "確定清除收聽紀錄？",
+		"clear_desc": "這會清除在此裝置上記錄的所有播放紀錄，讓統計資料重新開始計算，並清空「On Repeat」紀錄。你的 YouTube Music 收聽紀錄不會受到影響。",
+		"clear_confirm": "清除紀錄",
+		"cleared": "收聽紀錄已清除"
+	},
+	"comments": {
+		"title": "留言",
+		"sort_top": "最相關",
+		"sort_newest": "最新",
+		"count": "{count} 則留言",
+		"count_one": "1 則留言",
+		"replies": "{count} 則回覆",
+		"replies_one": "1 則回覆",
+		"show_replies": "查看回覆",
+		"hide_replies": "隱藏回覆",
+		"show_more_replies": "顯示更多回覆",
+		"load_more": "載入更多留言",
+		"disabled": "此曲目的留言被關閉或是不可用。",
+		"empty": "還沒有任何留言。",
+		"load_failed": "無法載入留言。",
+		"retry": "重試",
+		"pinned": "已釘選",
+		"hearted": "創作者覺得讚",
+		"verified": "已驗證",
+		"creator": "創作者",
+		"artist": "演出者",
+		"show_more": "顯示更多",
+		"show_less": "顯示更少",
+		"vote": "您的投票",
+		"like": "喜歡",
+		"remove_like": "移除喜歡",
+		"dislike": "不喜歡",
+		"remove_dislike": "移除不喜歡",
+		"reload_needed": "這些留言已經過時了。請重新載入查看最新留言。",
+		"reload": "重新載入",
+		"composer_label": "寫下留言",
+		"add_placeholder": "發表留言…",
+		"reply_placeholder": "回覆留言…",
+		"edit_label": "編輯您的留言",
+		"reply": "回覆",
+		"edit": "編輯",
+		"delete": "刪除",
+		"post": "發表",
+		"post_reply": "回覆",
+		"save": "儲存",
+		"sending": "發布中…",
+		"delete_title": "刪除這則留言？",
+		"delete_desc": "此操作無法復原，該留言底下的所有回覆也會一併刪除。",
+		"held": "針對 {title} 留言",
+		"follow_current": "顯示當前曲目",
+		"jump_to": "跳到 {time}"
+	},
+	"columns": {
+		"label": "欄位",
+		"choose": "選擇欄位",
+		"title": "標題",
+		"album": "專輯",
+		"added": "加入日期",
+		"by": "新增者",
+		"plays": "播放數",
+		"mine": "您的播放數",
+		"duration": "時長"
 	}
 }

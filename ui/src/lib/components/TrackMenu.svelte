@@ -37,6 +37,8 @@
 		bumpLibraryTrackCount,
 		enqueue,
 		inSongLibrary,
+		lookUpSongLibrary,
+		songLibraryPending,
 		songLibraryToken,
 		openShare,
 		notePlaylistRemove,
@@ -54,10 +56,10 @@
 		ui
 	} from '$lib/player.svelte';
 	import { lastfm } from '$lib/lastfm.svelte';
+	import { listenbrainz } from '$lib/listenbrainz.svelte';
 	import { lt } from '$lib/lt.svelte';
 	import { t } from '$lib/i18n.svelte';
 	import { invalidateCachedPrefix } from '$lib/pagecache';
-	import TempoPitchDialog from './TempoPitchDialog.svelte';
 
 	let {
 		song,
@@ -104,8 +106,6 @@
 	const isPick = $derived(personal.picks.some((p) => p.id === song.video_id));
 
 	let menuOpen = $state(false);
-	// Player-bar only: tempo/pitch belong to playback, not to a row you happen to be pointing at.
-	let advancedOpen = $state(false);
 	let anchor = $state(NO_ANCHOR);
 
 	// Click on the ⋯ opens under the button; right-click on the host row opens at the pointer.
@@ -114,6 +114,8 @@
 		e.stopPropagation();
 		anchor = anchorMenu(e, { align: 'right' });
 		menuOpen = true;
+		if (!inLibraryList) lookUpSongLibrary(song);
+		holdLibrary = songLibraryPending(song);
 	}
 	// stopPropagation everywhere: the trigger sits inside a clickable row (TrackRow's whole row is a
 	// play target), so its click must not reach the row's onplay (e.g. replacing the queue with the
@@ -138,6 +140,10 @@
 	// builds itself (local files, On Repeat, a mirrored guest queue) rather than dead.
 	const inLib = $derived(inSongLibrary(song));
 	const libraryToken = $derived(songLibraryToken(song));
+	// A row YouTube sent no toggle with asks for one as the menu opens. The item holds its place,
+	// disabled, for as long as this menu stays open, so nothing below it jumps under the pointer
+	// whatever the answer is. The next open shows it or not straight away.
+	let holdLibrary = $state(false);
 	// A local file has no YouTube identity: liking it or sharing it is not a thing, so those items
 	// don't show. Queue, shortcuts, go-to-album and saving it to a playlist on this machine work.
 	const isLocal = $derived(api.isLocalId(song.video_id));
@@ -206,7 +212,7 @@
      submit button there is what Enter clicks, opening this menu at the top left (#334). -->
 <button
 	type="button"
-	class="{triggerClass} {menuOpen ? 'opacity-100' : ''}"
+	class="{triggerClass} {menuOpen ? 'shown!' : ''}"
 	onclick={openMenu}
 	aria-label={t('a11y.track_options')}
 	{@attach ctxHost(openMenu)}
@@ -292,9 +298,10 @@
 				{rated === 'dislike' ? t('player.remove_dislike') : t('common.dislike')}
 			</button>
 		{/if}
-		{#if libraryToken && !inLibraryList}
+		{#if (libraryToken || holdLibrary) && !inLibraryList}
 			<button
-				class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent/10"
+				class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent/10 disabled:pointer-events-none disabled:opacity-50"
+				disabled={!libraryToken}
 				onclick={(e) => run(e, () => toggleSongLibrary(song))}
 			>
 				<!-- altIcon/showAlt, not a ternary: `icon` is read once at mount. -->
@@ -379,9 +386,9 @@
 			</button>
 		{/if}
 		<!-- #404: fix how this track scrobbles, for good. Opens the Scrobbling tab on it, where the
-		     preview shows what Last.fm gets before and after. Only for someone actually scrobbling:
-		     connected, and the tab's switch on. -->
-		{#if lastfm.connected && prefs.scrobbling}
+		     preview shows what both services get before and after. Only for someone actually
+		     scrobbling: connected somewhere, and the tab's switch on. -->
+		{#if (lastfm.connected || listenbrainz.connected) && prefs.scrobbling}
 			<button
 				class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent/10"
 				onclick={(e) =>
@@ -397,7 +404,7 @@
 		{#if linksOnly}
 			<button
 				class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent/10"
-				onclick={(e) => run(e, () => (advancedOpen = true))}
+				onclick={(e) => run(e, () => (ui.tempoPitchOpen = true))}
 			>
 				<HugeiconsIcon icon={PreferenceVerticalIcon} class="h-4 w-4" /> {t('dialogs.tempo_pitch.title')}
 			</button>
@@ -430,8 +437,4 @@
 			</button>
 		{/if}
 	</div>
-{/if}
-
-{#if linksOnly}
-	<TempoPitchDialog bind:open={advancedOpen} />
 {/if}

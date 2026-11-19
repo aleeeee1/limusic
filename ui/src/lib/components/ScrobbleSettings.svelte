@@ -16,10 +16,11 @@
 		Delete02Icon,
 		FileImportIcon,
 		LinkSquare02Icon,
-		Loading03Icon,
 		MusicNote01Icon,
 		PencilEdit02Icon
 	} from '@hugeicons/core-free-icons';
+	import LimusicLoader from './LimusicLoader.svelte';
+	import LogoMark from './LogoMark.svelte';
 	import { untrack, type Snippet } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -34,6 +35,13 @@
 	import { thumb } from '$lib/thumb';
 	import LastFmIcon from '$lib/components/LastFmIcon.svelte';
 	import { connectLastfm, disconnectLastfm, lastfm } from '$lib/lastfm.svelte';
+	import {
+		METABRAINZ_PROFILE,
+		connectListenBrainz,
+		disconnectListenBrainz,
+		listenbrainz,
+		problemText
+	} from '$lib/listenbrainz.svelte';
 	import {
 		PRESETS,
 		blankEdit,
@@ -91,6 +99,33 @@
 			.then((p) => lastfm.username === name && (profile = p))
 			.catch(() => {});
 	});
+	// --- ListenBrainz: token auth, listen count off the public API ---
+	// Connection state comes from Titlebar's single `watchListenBrainz` subscription
+	// (same as Last.fm's `watchLastfm`): a second subscription here would double the toasts.
+	let lbProfile = $state<api.ListenBrainzProfile | null>(null);
+	let lbToken = $state('');
+	let lbCustom = $state(false); // the URL field only exists while this is on
+	let lbUrl = $state('');
+	$effect(() => {
+		const name = listenbrainz.connected ? listenbrainz.username : null;
+		lbProfile = null;
+		if (!name) return;
+		api.listenbrainzProfile()
+			.then((p) => listenbrainz.username === name && (lbProfile = p))
+			.catch(() => {});
+	});
+	// Keep the token while connecting so a wrong address doesn't mean pasting it again.
+	$effect(() => {
+		if (listenbrainz.connected) lbToken = '';
+	});
+	// The button and the token field's Enter both go through here, so both get the checks.
+	const lbReady = $derived(
+		!!lbToken.trim() && !(lbCustom && !lbUrl.trim()) && !listenbrainz.connecting
+	);
+	function connectLb() {
+		if (!lbReady) return;
+		connectListenBrainz(lbToken.trim(), lbCustom ? lbUrl.trim() : '');
+	}
 	const num = (n: number) => n.toLocaleString(currentLocale.id);
 	const since = $derived(
 		profile?.since
@@ -145,6 +180,7 @@
 						(row?.video_id === playback.now.videoId ? row.album : undefined) ??
 						null,
 					is_video: !!playback.now.isVideo,
+					artist_runs: playback.now.artistRuns,
 					thumbnail: playback.now.thumbnail
 				}
 			: null
@@ -157,9 +193,9 @@
 	let seq = 0;
 	$effect(() => {
 		const config = JSON.stringify({ ...cfg, primary_artist: primaryOn, primary_strict: strictOn });
-		const { video_id, title, artists, album, is_video } = track;
+		const { video_id, title, artists, album, is_video, artist_runs } = track;
 		const n = ++seq;
-		api.lastfmPreview(config, { video_id, title, artists, album, is_video })
+		api.lastfmPreview(config, { video_id, title, artists, album, is_video, artist_runs })
 			.then((p) => {
 				if (n !== seq) return;
 				preview = p;
@@ -178,9 +214,10 @@
 		return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 	};
 	// One line under the mock saying whether this play counts and when. The first reason that
-	// applies wins: nothing else matters if the account isn't connected.
+	// applies wins: nothing else matters if neither account is connected.
 	const status = $derived.by(() => {
-		if (!lastfm.connected) return t('settings.scrobbling.status_disconnected');
+		if (!lastfm.connected && !listenbrainz.connected)
+			return t('settings.scrobbling.status_disconnected');
 		if (!cfg.enabled) return t('settings.scrobbling.status_paused');
 		if (preview?.skip === 'edit') return t('settings.scrobbling.status_skip_edit');
 		if (preview?.skip === 'incomplete') return t('settings.scrobbling.status_incomplete');
@@ -192,7 +229,9 @@
 			? t('settings.scrobbling.status_done', { time: fmt(at) })
 			: t('settings.scrobbling.status_at', { time: fmt(at) });
 	});
-	const sending = $derived(lastfm.connected && cfg.enabled && !preview?.skip);
+	const sending = $derived(
+		(lastfm.connected || listenbrainz.connected) && cfg.enabled && !preview?.skip
+	);
 
 	// --- Editing one track (#404) ---
 	let editing = $state(false);
@@ -309,7 +348,7 @@
 </script>
 
 {#snippet row_(o: { title: string; desc?: string; control?: Snippet; below?: Snippet })}
-	<div class="px-4 py-3.5">
+	<div data-setting-row class="px-4 py-3.5">
 		<div class="flex items-center justify-between gap-4">
 			<span class="min-w-0 text-sm font-medium">{o.title}</span>
 			{#if o.control}
@@ -330,7 +369,7 @@
 		<section class={GROUP}>
 			<!-- The account, the way Last.fm's own profile header shows it: avatar, name, and the
 			     three counts under it. -->
-			<div class="mb-2.5 overflow-hidden rounded-xl border bg-card">
+			<div data-settings-card class="mb-2.5 overflow-hidden rounded-xl border bg-card">
 				<div class="flex items-center gap-3.5 px-4 py-4">
 					<div
 						class="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ring-1 ring-border"
@@ -390,7 +429,128 @@
 					</div>
 				{/if}
 			</div>
-			<div class={CARD}>
+			<!-- ListenBrainz: same plays, second service. Token auth instead of the browser flow. -->
+			<div data-settings-card class="mb-2.5 overflow-hidden rounded-xl border bg-card">
+				<div class="flex items-center gap-3.5 px-4 py-4">
+					<div
+						class="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ring-1 ring-border"
+					>
+						{#if listenbrainz.connected && listenbrainz.username}
+							<span class="text-base font-semibold text-muted-foreground uppercase">
+								{listenbrainz.username[0]}
+							</span>
+						{:else}
+							<HugeiconsIcon icon={MusicNote01Icon} size={20} class="text-muted-foreground" />
+						{/if}
+					</div>
+					<div class="min-w-0 flex-1">
+						{#if listenbrainz.connected}
+							<button
+								type="button"
+								class="flex max-w-full cursor-pointer items-center gap-1.5 text-left hover:underline disabled:cursor-default disabled:no-underline"
+								disabled={!lbProfile?.url}
+								onclick={() => lbProfile?.url && api.openExternal(lbProfile.url)}
+								title={t('settings.scrobbling.lb_open_profile')}
+							>
+								<span class="truncate text-sm font-semibold">{listenbrainz.username}</span>
+								{#if lbProfile?.url}
+									<HugeiconsIcon icon={LinkSquare02Icon} size={13} class="shrink-0 text-muted-foreground" />
+								{/if}
+							</button>
+							{#if listenbrainz.problem}
+								<p class="text-xs text-destructive">
+									{problemText(listenbrainz.problem)}
+									{#if listenbrainz.problem === 'email'}
+										<button
+											type="button"
+											class="cursor-pointer underline hover:text-foreground"
+											onclick={() => api.openExternal(METABRAINZ_PROFILE)}
+										>
+											{t('settings.scrobbling.lb_verify_email')}
+										</button>
+									{/if}
+								</p>
+							{:else}
+								<p class="truncate text-xs text-muted-foreground">
+									{t('integrations.listenbrainz_connected_as', { user: listenbrainz.username ?? '' })}
+								</p>
+							{/if}
+						{:else}
+							<p class="text-sm font-semibold">ListenBrainz</p>
+							<p class="text-xs text-muted-foreground">
+								{listenbrainz.connecting
+									? t('settings.scrobbling.lb_validating')
+									: t('settings.scrobbling.lb_disconnected')}
+							</p>
+						{/if}
+					</div>
+					{@render lbAccountButton()}
+				</div>
+				{#if listenbrainz.connected && lbProfile}
+					<div class="grid grid-cols-1 divide-x divide-border/60 border-t border-border/60">
+						<div class="min-w-0 px-4 py-2.5">
+							<div
+								class="truncate text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase"
+							>
+								{t('settings.scrobbling.stat_listens')}
+							</div>
+							<div class="truncate text-base font-semibold tabular-nums">{num(lbProfile.listens)}</div>
+						</div>
+					</div>
+				{/if}
+				{#if !listenbrainz.connected}
+					<div class="border-t border-border/60 px-4 py-3">
+						<p class="mb-2 text-xs leading-relaxed text-muted-foreground">
+							{t('settings.scrobbling.lb_token_hint')}
+						</p>
+						<Button
+							variant="secondary"
+							size="sm"
+							class="mb-2.5 gap-1.5"
+							onclick={() => api.openExternal('https://listenbrainz.org/settings/')}
+						>
+							<HugeiconsIcon icon={LinkSquare02Icon} size={15} />
+							{t('settings.scrobbling.lb_open_settings')}
+						</Button>
+						<label class="mb-2 flex items-center justify-between gap-3 text-xs">
+							{t('settings.scrobbling.lb_custom_instance')}
+							<Switch bind:checked={lbCustom} />
+						</label>
+						{#if lbCustom}
+							<Input
+								class="mb-2 h-8 font-mono text-xs"
+								bind:value={lbUrl}
+								placeholder="https://listenbrainz.example.com"
+								aria-label={t('settings.scrobbling.lb_url_label')}
+								spellcheck={false}
+							/>
+						{/if}
+						<div class="flex gap-2">
+							<Input
+								class="h-8 font-mono text-xs"
+								type="password"
+								bind:value={lbToken}
+								placeholder={t('settings.scrobbling.lb_token_placeholder')}
+								aria-label={t('settings.scrobbling.lb_token_placeholder')}
+								spellcheck={false}
+								onkeydown={(e) => e.key === 'Enter' && connectLb()}
+							/>
+							<Button
+								size="sm"
+								disabled={!lbReady}
+								onclick={connectLb}
+							>
+								{#if listenbrainz.connecting}
+									<LimusicLoader class="size-4 text-current" />
+								{:else}
+									{t('settings.scrobbling.connect')}
+								{/if}
+							</Button>
+						</div>
+					</div>
+				{/if}
+			</div>
+			<div data-settings-card class={CARD}>
 				{@render row_({
 					title: t('settings.scrobbling.enable'),
 					desc: t('settings.scrobbling.enable_hint'),
@@ -406,7 +566,7 @@
 
 		<section class={GROUP}>
 			<h3 class={LABEL}>{t('settings.scrobbling.section_timing')}</h3>
-			<div class={CARD}>
+			<div data-settings-card class={CARD}>
 				{@render row_({
 					title: t('settings.scrobbling.percent'),
 					desc: t('settings.scrobbling.percent_hint'),
@@ -422,7 +582,7 @@
 
 		<section class={GROUP}>
 			<h3 class={LABEL}>{t('settings.scrobbling.section_metadata')}</h3>
-			<div class={CARD}>
+			<div data-settings-card class={CARD}>
 				{@render row_({
 					title: t('settings.scrobbling.split_titles'),
 					desc: t('settings.scrobbling.split_titles_hint'),
@@ -443,11 +603,11 @@
 			</div>
 		</section>
 
-		<section class={GROUP}>
+		<section data-setting-row class={GROUP}>
 			<h3 class={LABEL}>{t('settings.scrobbling.section_rules')}</h3>
 			<p class={HINT}>{t('settings.scrobbling.rules_hint')}</p>
 			{#if cfg.rules.length}
-				<div class="{CARD} mb-2.5">
+				<div data-settings-card class="{CARD} mb-2.5">
 					{#each cfg.rules as rule, i (i)}
 						<div class="px-4 py-3 {rule.enabled ? '' : 'opacity-60'}">
 							<div class="flex items-center gap-2.5">
@@ -591,10 +751,10 @@
 			{/if}
 		</section>
 
-		<section class={GROUP}>
+		<section data-setting-row class={GROUP}>
 			<h3 class={LABEL}>{t('settings.scrobbling.section_edits')}</h3>
 			<p class={HINT}>{t('settings.scrobbling.edits_hint')}</p>
-			<div class={CARD}>
+			<div data-settings-card class={CARD}>
 				{#each shownEdits as e, i (i)}
 					<div class="flex items-center gap-3 px-4 py-2.5">
 						<div class="min-w-0 flex-1">
@@ -635,6 +795,7 @@
 	</div>
 
 	<aside
+		data-settings-aside
 		class="flex shrink-0 flex-col overflow-y-auto bg-muted/30 px-5 py-5 lg:w-[22rem] lg:border-l max-lg:border-t"
 	>
 		<div class="mb-2.5 flex items-center gap-2">
@@ -730,7 +891,7 @@
 						{#if track.thumbnail}
 							<img src={thumb(track.thumbnail, 96)} alt="" class="size-full object-cover" draggable="false" />
 						{:else}
-							<HugeiconsIcon icon={MusicNote01Icon} size={20} class="text-muted-foreground" />
+							<LogoMark class="size-3/4 text-muted-foreground/20" />
 						{/if}
 					</div>
 					<div class="min-w-0 flex-1">
@@ -746,7 +907,7 @@
 								<div class="truncate text-xs text-muted-foreground">{preview.album}</div>
 							{/if}
 						{:else}
-							<HugeiconsIcon icon={Loading03Icon} size={16} class="animate-spin text-muted-foreground" />
+							<LimusicLoader class="size-5" />
 						{/if}
 					</div>
 				</div>
@@ -785,11 +946,18 @@
 	{:else if lastfm.connecting}
 		<!-- Cancels the browser authorization, same as a second click on the titlebar button. -->
 		<Button variant="ghost" size="sm" class="gap-1.5" onclick={disconnectLastfm}>
-			<HugeiconsIcon icon={Loading03Icon} size={15} class="animate-spin" />
+			<LimusicLoader class="size-4" />
 			{t('common.cancel')}
 		</Button>
 	{:else}
 		<Button size="sm" onclick={connectLastfm}>{t('settings.scrobbling.connect')}</Button>
+	{/if}
+{/snippet}
+{#snippet lbAccountButton()}
+	{#if listenbrainz.connected}
+		<Button variant="ghost" size="sm" class="text-destructive hover:text-destructive" onclick={disconnectListenBrainz}>
+			{t('integrations.disconnect')}
+		</Button>
 	{/if}
 {/snippet}
 {#snippet enabledSwitch()}<Switch
